@@ -21,6 +21,15 @@ I've had a lot of fun writing it and I learned a lot on my journey.
 - 64 bit machines (until I can confirm that it works on 32 bit).
 - msvc compiler (gcc and nvcc support are also coming)
 
+## Installation
+Your typical installation should be fairly simple. Drag and drop the header and source files into their appropriate directories in your project.
+
+For the core of the library you'll want:
+- `Base256uMath.h`
+- `Base256uMath.cpp`
+
+The unit tests are there just for you to test to see if the library works as intended in your environment.
+
 ## Tutorial
 I'm gonna write a short tutorial on how to use this. In case my future self is too lazy to figure it out himself.
 I have written a more in depth explanation in the `Base256uMath.h` header file.
