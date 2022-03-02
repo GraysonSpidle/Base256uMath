@@ -11,7 +11,7 @@ I wanted a library that could manipulate large unsigned numbers with the capabil
 
 I also wanted the library to be trivially convertible for CUDA code, which had a laundry list of things I could not use.
 
-I was dissatisfied with the choices I found, so I made this. I don't claim to be the greatest mathemetician or computer scientist, but this gets the job done.
+I was dissatisfied with the choices I found, so I made this. I don't claim to be the greatest mathematician or computer scientist, but this gets the job done.
 
 I've had a lot of fun writing it and I learned a lot on my journey.
 
@@ -84,6 +84,7 @@ int main() {
 - in-place modulo
 - gcc and nvcc compatibility
 - 32 bit compatibility
+- polishing clarity in documentation
 
 ## Some nice things I'd like to have happen
 - optimize divide
