@@ -32,14 +32,10 @@ namespace Base256uMath {
 	/*  Enumeration of all error codes that all the functions in this namespace (that return error codes) can return.
 	Warnings (non fatal errors) are all positive numbers and fatal errors are all negative numbers.
 
-	You can suppress warning codes by defining the macro _BASE256UMATH_SUPPRESS_WARNING_CODES as 1.
-	By default, warning codes are not suppressed. Even if the macro is not defined.
-
-	Documentation on functions (that return error codes) intentionally calls certain error codes
-	as "warning" codes. Disregard those if you choose to suppress warning codes.
-
-	Depending on the implementation, some functions will see a performance increase when warning codes
-	are suppressed. 
+	You can suppress the TRUNCATED warning code by defining the macro BASE256UMATH_SUPPRESS_TRUNCATED_CODE as 1.
+	By default, it is not suppressed. Even if the macro is not defined.
+	I did this because the warning code doesn't really come into play that much. Most of the time it's warning you
+	of nothing. However, when debugging, it is actually kind of useful *sometimes*. So there's that.
 	*/
 	enum ErrorCodes {
 
@@ -47,7 +43,9 @@ namespace Base256uMath {
 		DIVIDE_BY_ZERO = -1, // Division by zero
 		OK = 0, // Nothing went wrong
 		FLOW = 1, // Overflow/Underflow warning
+#if !defined(BASE256UMATH_SUPPRESS_TRUNCATED_CODE) || !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 		TRUNCATED = 2 // Output data was truncated due to its size not being adequate enough to accomodate
+#endif
 	};
 
 	/* Essentially, this is the opposite of the bool() operator.
@@ -431,6 +429,23 @@ namespace Base256uMath {
 		std::size_t remainder_n
 	);
 
+	int divide(
+		void* const left,
+		std::size_t left_n,
+		const void* const right,
+		std::size_t right_n,
+		void* const remainder,
+		std::size_t remainder_n
+	);
+
+	int divide(
+		void* const left,
+		std::size_t left_n,
+		std::size_t right,
+		void* const remainder,
+		std::size_t remainder_n
+	);
+
 	/* Divides two given numbers and stores the quotient in another number and discards the remainder (but still must allocate memory for it).
 	Parameters:
 	* left : pointer to the dividend. Read only.
@@ -445,7 +460,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM
 	*/
-	int divide(
+	int divide_no_mod(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -454,17 +469,7 @@ namespace Base256uMath {
 		std::size_t dst_n
 	);
 
-	/*int divide(
-		const void* const left,
-		std::size_t left_n,
-		std::size_t right,
-		void* const dst,
-		std::size_t dst_n,
-		void* const remainder,
-		std::size_t remainder_n
-	);
-
-	int divide(
+	int divide_no_mod(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -472,14 +477,18 @@ namespace Base256uMath {
 		std::size_t dst_n
 	);
 
-	int divide(
+	int divide_no_mod(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
 		std::size_t right_n
 	);
-	*/
 
+	int divide_no_mod(
+		void* const left,
+		std::size_t left_n,
+		std::size_t right
+	);
 
 	/* Divides two given numbers and stores the remainder in another number and discards the quotient (but still must allocate memory for it?).
 	Parameters:

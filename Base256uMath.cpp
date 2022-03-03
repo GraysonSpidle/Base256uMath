@@ -123,6 +123,14 @@ int Base256uMath::compare(
 	return 0;
 }
 
+int Base256uMath::compare(
+	const void* const left,
+	std::size_t left_n,
+	std::size_t right
+) {
+	return compare(left, left_n, &right, sizeof(right));
+}
+
 const void* const Base256uMath::max(
 	const void* const left,
 	std::size_t left_n,
@@ -728,6 +736,8 @@ int Base256uMath::multiply(
 	);
 }
 
+// https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
+// Thank God for stack overflow
 #if BASE256UMATH_ARCHITECTURE == 64
 const int tab64[64] = {
 	63,  0, 58,  1, 59, 47, 53,  2,
@@ -779,61 +789,18 @@ unsigned long sig_bit(std::size_t n) { // essentially just log2
 #endif
 }
 
-int Base256uMath::divide(
+inline int binary_long_division(
 	const void* const dividend,
-	std::size_t dividend_n,
+	std::size_t& dividend_n,
 	const void* const divisor,
-	std::size_t divisor_n,
+	std::size_t& divisor_n,
 	void* const dst,
-	std::size_t dst_n,
+	std::size_t& dst_n,
 	void* const remainder,
-	std::size_t remainder_n
+	std::size_t& remainder_n
 ) {
-	/* Division sucks. Our approach is gonna be modeled off binary long division.
-	I know, I know, boooooo! But I'm so over trying to be clever with making a division
-	algorithm, so I'm not gonna bother.
-	*/
-
-	dividend_n = MIN(dividend_n, remainder_n);
-
-	if (Base256uMath::is_zero(divisor, divisor_n)) {
-		// cannot divide by zero
-		return ErrorCodes::DIVIDE_BY_ZERO;
-	}
-
-	if (!dst_n) {
-		return ErrorCodes::TRUNCATED;
-	}
-
-	memset(dst, 0, dst_n);
-	memset(remainder, 0, remainder_n);
-
-	if (Base256uMath::is_zero(dividend, dividend_n)) {
-		if (remainder_n == 0)
-			return ErrorCodes::TRUNCATED;
-		// 0 divided by anything is 0 and the remainder is also 0.
-		return ErrorCodes::OK;
-	}
-
-	// Check, before we do any division, if dividend > divisor.
-
-	switch (Base256uMath::compare(dividend, dividend_n, divisor, divisor_n)) {
-	case -1: // dividend < divisor
-		// Quotient becomes 0 and remainder becomes dividend
-		memcpy(remainder, dividend, dividend_n);
-		if (MIN(dst_n, remainder_n) < dividend_n)
-			return ErrorCodes::TRUNCATED;
-		return ErrorCodes::OK;
-	case 0: // dividend == divisor
-		// Quotient becomes 1 and remainder becomes 0
-		reinterpret_cast<unsigned char*>(dst)[0] = 1;
-		if (MIN(dst_n, remainder_n) < dividend_n)
-			return ErrorCodes::TRUNCATED;
-		return ErrorCodes::OK;
-	}
-
 	// Now we know that dividend > divisor, we must set up some numbers.
-	
+
 	// Copy dividend into remainder
 	memcpy(remainder, dividend, dividend_n);
 
@@ -866,12 +833,12 @@ int Base256uMath::divide(
 
 	auto divisor_copy = new unsigned char[dividend_n];
 	if (!divisor_copy)
-		return ErrorCodes::OOM;
+		return Base256uMath::ErrorCodes::OOM;
 
 	// Now here's where the dividing starts
 
 	// while remainder >= divisor (not the divisor_copy)
-	while (Base256uMath::compare(remainder, remainder_n, divisor, divisor_n) >= 0) { 
+	while (Base256uMath::compare(remainder, remainder_n, divisor, divisor_n) >= 0) {
 		// At the beginning of each pass, we reset the divisor_copy and bit shift it again
 		memset(divisor_copy, 0, dividend_n);
 		memcpy(divisor_copy, divisor, MIN(divisor_n, dividend_n));
@@ -918,26 +885,168 @@ int Base256uMath::divide(
 	// This is just to be 100% careful, but it's a warning code for a reason,
 	// it is only a suggestion and is in no way fatal.
 
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (MIN(dst_n, remainder_n) < dividend_n || dividend_n < divisor_n) {
+		return Base256uMath::ErrorCodes::TRUNCATED;
+	}
+#endif
+	return Base256uMath::ErrorCodes::OK;
+
+}
+
+int Base256uMath::divide(
+	const void* const dividend,
+	std::size_t dividend_n,
+	const void* const divisor,
+	std::size_t divisor_n,
+	void* const dst,
+	std::size_t dst_n,
+	void* const remainder,
+	std::size_t remainder_n
+) {
+	/* Division sucks. Our approach is gonna be modeled off binary long division.
+	I know, I know, boooooo! But I'm so over trying to be clever with making a division
+	algorithm, so I'm not gonna bother.
+	*/
+
+	dividend_n = MIN(dividend_n, remainder_n);
+
+	if (Base256uMath::is_zero(divisor, divisor_n)) {
+		// cannot divide by zero
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
+
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (!dst_n) {
 		return ErrorCodes::TRUNCATED;
 	}
-	return ErrorCodes::OK;
+#endif
+
+	memset(dst, 0, dst_n);
+	memset(remainder, 0, remainder_n);
+
+	if (Base256uMath::is_zero(dividend, dividend_n)) {
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (remainder_n == 0)
+			return ErrorCodes::TRUNCATED;
+#endif
+		// 0 divided by anything is 0 and the remainder is also 0.
+		return ErrorCodes::OK;
+	}
+
+	// Check, before we do any division, if dividend > divisor.
+
+	switch (Base256uMath::compare(dividend, dividend_n, divisor, divisor_n)) {
+	case -1: // dividend < divisor
+		// Quotient becomes 0 and remainder becomes dividend
+		memcpy(remainder, dividend, dividend_n);
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (MIN(dst_n, remainder_n) < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	case 0: // dividend == divisor
+		// Quotient becomes 1 and remainder becomes 0
+		reinterpret_cast<unsigned char*>(dst)[0] = 1;
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (MIN(dst_n, remainder_n) < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	}
+
+	return binary_long_division(dividend, dividend_n, divisor, divisor_n, dst, dst_n, remainder, remainder_n);
+	
 }
 
 int Base256uMath::divide(
 	const void* const left,
 	std::size_t left_n,
+	std::size_t right,
+	void* const dst,
+	std::size_t dst_n,
+	void* const remainder,
+	std::size_t remainder_n
+) {
+	return divide(left, left_n, &right, sizeof(right), dst, dst_n, remainder, remainder_n);
+}
+
+int Base256uMath::divide(
+	void* const left,
+	std::size_t left_n,
 	const void* const right,
 	std::size_t right_n,
+	void* const remainder,
+	std::size_t remainder_n
+) {
+	return 0;
+}
+
+int Base256uMath::divide_no_mod(
+	const void* const dividend,
+	std::size_t dividend_n,
+	const void* const divisor,
+	std::size_t divisor_n,
 	void* const dst,
 	std::size_t dst_n
 ) {
-	void* remainder = malloc(left_n);
+	void* remainder = malloc(dividend_n);
 	if (!remainder)
 		return Base256uMath::ErrorCodes::OOM;
-	auto code = Base256uMath::divide(left, left_n, right, right_n, dst, dst_n, remainder, left_n);
+
+	if (Base256uMath::is_zero(divisor, divisor_n)) {
+		// cannot divide by zero
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
+
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (!dst_n) {
+		return ErrorCodes::TRUNCATED;
+	}
+#endif
+
+	memset(dst, 0, dst_n);
+	memset(remainder, 0, dividend_n);
+
+	if (Base256uMath::is_zero(dividend, dividend_n)) {
+		// 0 divided by anything is 0 and the remainder is also 0.
+		return ErrorCodes::OK;
+	}
+
+	// Check, before we do any division, if dividend > divisor.
+
+	switch (Base256uMath::compare(dividend, dividend_n, divisor, divisor_n)) {
+	case -1: // dividend < divisor
+		// Quotient becomes 0 and remainder becomes dividend
+		memcpy(remainder, dividend, dividend_n);
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (dst_n < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	case 0: // dividend == divisor
+		// Quotient becomes 1 and remainder becomes 0
+		reinterpret_cast<unsigned char*>(dst)[0] = 1;
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (dst_n < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	}
+
+	auto code = binary_long_division(dividend, dividend_n, divisor, divisor_n, dst, dst_n, remainder, dividend_n);
 	free(remainder);
 	return code;
+}
+
+int Base256uMath::divide_no_mod(
+	const void* const left,
+	std::size_t left_n,
+	std::size_t right,
+	void* const dst,
+	std::size_t dst_n
+) {
+	return divide_no_mod(left, left_n, &right, sizeof(right), dst, dst_n);
 }
 
 int Base256uMath::mod(
@@ -948,7 +1057,6 @@ int Base256uMath::mod(
 	void* const dst,
 	std::size_t dst_n
 ) {
-
 	// so this will look identical to the division implementation, and that's because it is,
 	// but with a few tweaks.
 
@@ -961,8 +1069,10 @@ int Base256uMath::mod(
 
 	memset(dst, 0, dst_n);
 
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (!dst_n)
 		return ErrorCodes::TRUNCATED;
+#endif
 
 	if (Base256uMath::is_zero(dividend, dividend_n)) {
 		// 0 divided by anything is 0 and the remainder is also 0.
@@ -975,14 +1085,18 @@ int Base256uMath::mod(
 	case -1: // dividend < divisor
 		// Quotient becomes 0 and remainder becomes dividend
 		memcpy(dst, dividend, dividend_n);
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 		if (dst_n < dividend_n)
 			return ErrorCodes::TRUNCATED;
+#endif
 		return ErrorCodes::OK;
 	case 0: // dividend == divisor
 		// Quotient becomes 1 and remainder becomes 0
 		reinterpret_cast<unsigned char*>(dst)[0] = 1;
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 		if (dst_n < dividend_n)
 			return ErrorCodes::TRUNCATED;
+#endif
 		return ErrorCodes::OK;
 	}
 
@@ -1069,9 +1183,11 @@ int Base256uMath::mod(
 	// This is just to be 100% careful, but it's a warning code for a reason,
 	// it is only a suggestion and is in no way fatal.
 
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (dst_n < dividend_n || dividend_n < divisor_n) {
 		return ErrorCodes::TRUNCATED;
 	}
+#endif
 	return ErrorCodes::OK;
 }
 

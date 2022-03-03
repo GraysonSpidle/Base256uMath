@@ -1,11 +1,18 @@
+/* UnitTests.h
+Author: Grayson Spidle
+
+Definitions for all my unit tests. I decided to write my own instead of using a framework,
+because I didn't want to have to deal with the hassle of the framework not working in other
+environments.
+
+I tried to be comprehensive in my testing, but writing unit tests is boring so I might miss a few things.
+*/
+
 #ifndef __BASE256UMATHTESTS__
 #define __BASE256UMATHTESTS__
 
 /* TODO
-
-make variants of arithmetic functions with the 'right' variable as a std::size_t
-
-
+- Write in-place tests for divide and mod
 */
 
 namespace Base256uMathTests {
@@ -205,6 +212,19 @@ namespace Base256uMathTests {
 		void dst_n_zero();
 		void remainder_n_less();
 		void remainder_n_zero();
+	};
+	struct divide_no_mod {
+		divide_no_mod();
+
+		void ideal_case();
+		void big_ideal_case();
+		void left_is_zero();
+		void left_n_zero();
+		void right_is_zero();
+		void right_n_zero();
+		void left_n_less();
+		void dst_n_less();
+		void dst_n_zero();
 	};
 	struct mod {
 		mod();
