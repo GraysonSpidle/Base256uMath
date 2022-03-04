@@ -12,7 +12,21 @@ I tried to be comprehensive in my testing, but writing unit tests is boring so I
 #define __BASE256UMATHTESTS__
 
 /* TODO
-- Write in-place tests for divide and mod
+- is_zero: src_n_zero()
+- compare:
+	- left_n_zero()
+	- right_n_zero()
+- max:
+	- left_n_zero()
+	- right_n_zero()
+- min:
+	- left_n_zero()
+	- right_n_zero()
+- increment:
+	- n_is_zero()
+- decrement:
+	- n_is_zero()
+
 */
 
 namespace Base256uMathTests {
@@ -212,6 +226,16 @@ namespace Base256uMathTests {
 		void dst_n_zero();
 		void remainder_n_less();
 		void remainder_n_zero();
+
+		void in_place_ideal_case();
+		void in_place_big_ideal_case();
+		void in_place_left_is_zero();
+		void in_place_left_n_zero();
+		void in_place_right_is_zero();
+		void in_place_right_n_zero();
+		void in_place_left_n_less();
+		void in_place_remainder_n_less();
+		void in_place_remainder_n_zero();
 	};
 	struct divide_no_mod {
 		divide_no_mod();
@@ -225,6 +249,14 @@ namespace Base256uMathTests {
 		void left_n_less();
 		void dst_n_less();
 		void dst_n_zero();
+
+		void in_place_ideal_case();
+		void in_place_big_ideal_case();
+		void in_place_left_is_zero();
+		void in_place_left_n_zero();
+		void in_place_right_is_zero();
+		void in_place_right_n_zero();
+		void in_place_left_n_less();
 	};
 	struct mod {
 		mod();
@@ -238,6 +270,14 @@ namespace Base256uMathTests {
 		void left_n_less();
 		void dst_n_less();
 		void dst_n_zero();
+
+		void in_place_ideal_case();
+		void in_place_big_ideal_case();
+		void in_place_left_is_zero();
+		void in_place_left_n_zero();
+		void in_place_right_is_zero();
+		void in_place_right_n_zero();
+		void in_place_left_n_less();
 	};
 	struct log2 {
 		log2();
@@ -246,7 +286,7 @@ namespace Base256uMathTests {
 		void big_ideal_case();
 		void src_is_zero();
 		void src_n_zero();
-		// void dst_n_zero();
+		void dst_n_zero();
 	};
 	struct log256 {
 		log256();

@@ -1078,7 +1078,6 @@ int Base256uMath::divide(
 	return divide(left, left_n, &right, sizeof(right), dst, dst_n, remainder, remainder_n);
 }
 
-
 int Base256uMath::divide(
 	void* const dividend,
 	std::size_t dividend_n,
@@ -1087,49 +1086,28 @@ int Base256uMath::divide(
 	void* const remainder,
 	std::size_t remainder_n
 ) {
-	/*
-	dividend_n = MIN(dividend_n, remainder_n);
+	void* quotient = malloc(dividend_n);
+	if (!quotient)
+		return ErrorCodes::OOM;
 
-	if (Base256uMath::is_zero(divisor, divisor_n)) {
-		// cannot divide by zero
-		return ErrorCodes::DIVIDE_BY_ZERO;
-	}
+	auto code = divide(dividend, dividend_n, divisor, divisor_n, quotient, dividend_n, remainder, remainder_n);
 
-	memset(remainder, 0, remainder_n);
+	if (Base256uMath::is_zero(dividend, dividend_n))
+		memset(remainder, 0, remainder_n);
+	memcpy(dividend, quotient, dividend_n);
+	free(quotient);
 
-	if (Base256uMath::is_zero(dividend, dividend_n)) {
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-		if (remainder_n == 0)
-			return ErrorCodes::TRUNCATED;
-#endif
-		// 0 divided by anything is 0 and the remainder is also 0.
-		return ErrorCodes::OK;
-	}
+	return code;
+}
 
-	// Check, before we do any division, if dividend > divisor.
-
-	switch (Base256uMath::compare(dividend, dividend_n, divisor, divisor_n)) {
-	case -1: // dividend < divisor
-		// Quotient becomes 0 and remainder becomes dividend
-		memcpy(remainder, dividend, dividend_n);
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-		if (MIN(dst_n, remainder_n) < dividend_n)
-			return ErrorCodes::TRUNCATED;
-#endif
-		return ErrorCodes::OK;
-	case 0: // dividend == divisor
-		// Quotient becomes 1 and remainder becomes 0
-		reinterpret_cast<unsigned char*>(dst)[0] = 1;
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-		if (remainder_n < dividend_n)
-			return ErrorCodes::TRUNCATED;
-#endif
-		return ErrorCodes::OK;
-	}
-
-	return binary_long_division(dividend, dividend_n, divisor, divisor_n, remainder, remainder_n);
-	*/
-	return 0;
+int Base256uMath::divide(
+	void* const left,
+	std::size_t left_n,
+	std::size_t right,
+	void* const remainder,
+	std::size_t remainder_n
+) {
+	return divide(left, left_n, &right, sizeof(right), remainder, remainder_n);
 }
 
 int Base256uMath::divide_no_mod(
@@ -1197,6 +1175,26 @@ int Base256uMath::divide_no_mod(
 	std::size_t dst_n
 ) {
 	return divide_no_mod(left, left_n, &right, sizeof(right), dst, dst_n);
+}
+
+int Base256uMath::divide_no_mod(
+	void* const left,
+	std::size_t left_n,
+	const void* const right,
+	std::size_t right_n
+) {
+	void* remainder = malloc(left_n);
+	if (!remainder)
+		return ErrorCodes::OOM;
+
+	auto code = divide(left, left_n, right, right_n, remainder, left_n);
+
+	free(remainder);
+	return 0;
+}
+
+int Base256uMath::divide_no_mod(void* const left, std::size_t left_n, std::size_t right) {
+	return divide_no_mod(left, left_n, &right, sizeof(right));
 }
 
 int Base256uMath::mod(
@@ -1341,6 +1339,27 @@ int Base256uMath::mod(
 	return ErrorCodes::OK;
 }
 
+int Base256uMath::mod(const void* const left, std::size_t left_n, std::size_t right, void* const dst, std::size_t dst_n) {
+	return mod(left, left_n, &right, sizeof(right), dst, dst_n);
+}
+
+int Base256uMath::mod(void* const left, std::size_t left_n, const void* const right, std::size_t right_n) {
+	void* dst = malloc(left_n);
+	if (!dst)
+		return ErrorCodes::OOM;
+
+	auto code = mod(left, left_n, right, right_n, dst, left_n);
+
+	memcpy(left, dst, left_n);
+	free(dst);
+
+	return code;
+}
+
+int Base256uMath::mod(void* const left, std::size_t left_n, std::size_t right) {
+	return mod(left, left_n, &right, sizeof(right));
+}
+
 int Base256uMath::log2(
 	const void* const src,
 	std::size_t src_n,
@@ -1360,7 +1379,6 @@ int Base256uMath::log2(
 	// From this point on, src is non-zero.
 
 	memset(dst, 0, dst_n);
-//	*reinterpret_cast<std::size_t*>(dst) = sig_byte;
 
 	memcpy(dst, &sig_byte, MIN(sizeof(std::size_t), dst_n));
 
@@ -1370,6 +1388,10 @@ int Base256uMath::log2(
 
 	add(dst, dst_n, &num, sizeof(num));
 
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (Base256uMath::compare(dst, dst_n, &sig_byte, sizeof(sig_byte)) < 0)
+		return ErrorCodes::TRUNCATED;
+#endif
 	return ErrorCodes::OK;
 }
 
@@ -1863,6 +1885,8 @@ int Base256uMath::bit_shift_right(
 #if BASE256UMATH_FAST_OPERATORS
 		bit_shift_right_fast(src, src_n, n_bits);
 #else
+		// Fall back to just doing byte by byte
+
 		auto src_ptr = reinterpret_cast<unsigned char*>(src);
 		auto src_end = reinterpret_cast<unsigned char*>(src) + src_n;
 
@@ -1888,7 +1912,7 @@ int Base256uMath::bitwise_and(
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
 	for (std::size_t i = 0; i < dst_n; i++) {
-		*(dst_ptr + i) = (*(l_ptr + i) * (i < left_n)) & (*(r_ptr + i) * (i < right_n));
+		dst_ptr[i] = (l_ptr[i] * (i < left_n)) & (r_ptr[i] * (i < right_n));
 	}
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
@@ -1907,12 +1931,8 @@ int Base256uMath::bitwise_and(
 	auto l_ptr = reinterpret_cast<unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	for (std::size_t i = 0; i < left_n; i++) {
-		*(l_ptr + i) &= (*(r_ptr + i) * (i < right_n));
+		l_ptr[i] &= (r_ptr[i] * (i < right_n));
 	}
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (left_n < right_n)
-		return ErrorCodes::TRUNCATED;
-#endif
 	return ErrorCodes::OK;
 }
 
@@ -1928,7 +1948,7 @@ int Base256uMath::bitwise_or(
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
 	for (std::size_t i = 0; i < dst_n; i++) {
-		*(dst_ptr + i) = (*(l_ptr + i) * (i < left_n)) | (*(r_ptr + i) * (i < right_n));
+		dst_ptr[i] = (l_ptr[i] * (i < left_n)) | (r_ptr[i] * (i < right_n));
 	}
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
@@ -1947,7 +1967,7 @@ int Base256uMath::bitwise_or(
 	auto l_ptr = reinterpret_cast<unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	for (std::size_t i = 0; i < left_n; i++) {
-		*(l_ptr + i) |= *(r_ptr + i) * (i < right_n);
+		l_ptr[i] |= r_ptr[i] * (i < right_n);
 	}
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (left_n < right_n)
@@ -1968,13 +1988,8 @@ int Base256uMath::bitwise_xor(
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
 	for (std::size_t i = 0; i < dst_n; i++) {
-		*(dst_ptr + i) = (*(l_ptr + i) * (i < left_n)) ^ (*(r_ptr + i) * (i < right_n));
+		dst_ptr[i] = (l_ptr[i] * (i < left_n)) ^ (r_ptr[i] * (i < right_n));
 	}
-
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (dst_n < MIN(left_n, right_n))
-		return ErrorCodes::TRUNCATED;
-#endif
 	return ErrorCodes::OK;
 }
 
@@ -1987,13 +2002,8 @@ int Base256uMath::bitwise_xor(
 	auto l_ptr = reinterpret_cast<unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	for (std::size_t i = 0; i < left_n; i++) {
-		*(l_ptr + i) ^= *(r_ptr + i) * (i < right_n);
+		l_ptr[i] ^= r_ptr[i] * (i < right_n);
 	}
-
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (left_n < right_n)
-		return ErrorCodes::TRUNCATED;
-#endif
 	return ErrorCodes::OK;
 }
 

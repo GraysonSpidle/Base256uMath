@@ -1288,6 +1288,16 @@ Base256uMathTests::divide::divide() {
 	dst_n_zero();
 	remainder_n_less();
 	remainder_n_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_is_zero();
+	in_place_left_n_zero();
+	in_place_right_is_zero();
+	in_place_right_n_zero();
+	in_place_left_n_less();
+	in_place_remainder_n_less();
+	in_place_remainder_n_zero();
 }
 void Base256uMathTests::divide::ideal_case() {
 	std::size_t left = 0b11001000000000111111010,
@@ -1520,6 +1530,172 @@ void Base256uMathTests::divide::remainder_n_zero() {
 	}
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
+void Base256uMathTests::divide::in_place_ideal_case() {
+	std::size_t left = 0b11001000000000111111010,
+		right = 0b1100100010000,
+		mod,
+		answer = left / right,
+		answer_mod = left % right;
+	auto code = Base256uMath::divide(
+		&left, sizeof(left),
+		&right, sizeof(right),
+		&mod, sizeof(mod)
+	);
+	assert(left  == answer);
+	assert(mod = answer_mod);
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide::in_place_big_ideal_case() {
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[10];
+	unsigned char answer[] = { 91, 1 };
+	unsigned char answer_mod[] = { 101, 110, 228, 117, 44, 39, 11, 193, 83 };
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	for (unsigned char i = 0; i < sizeof(answer); i++) {
+		assert(left[i] == answer[i]);
+	}
+	for (unsigned char i = 0; i < sizeof(answer_mod); i++) {
+		assert(mod[i] == answer_mod[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide::in_place_left_is_zero() {
+	// if left_n is zero, truncation is guaranteed and nothing will happen.
+	// 
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == i);
+		assert(mod[i] == (i + 10));
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide::in_place_left_n_zero() {
+	// if left_n is zero, then it is assumed to be all zeros.
+	// that means dst and mod will be all zeros
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	unsigned char mod[sizeof(left)];
+	auto code = Base256uMath::divide(
+		left, 0,
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+		assert(mod[i] == 0);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide::in_place_right_is_zero() {
+	// if right is zero, then nothing happens and a division by zero error code is returned
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 0;
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+		assert(mod[i] == (i + 20));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::divide::in_place_right_n_zero() {
+	// if right_n is zero, then right is assumed to be all zeros and the function
+	// behaves as if right were zero.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 5;
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, 0,
+		mod, sizeof(mod)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+		assert(mod[i] == (i + 20));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::divide::in_place_left_n_less() {
+	// left > right, but 0 < left_n < right_n. 
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	unsigned char mod[sizeof(left)];
+	assert(sizeof(left) < sizeof(right));
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	unsigned char answer[] = { 139, 2, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 69, 102, 238, 175, 91, 120, 162, 41, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == answer[i]);
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		assert(mod[i] == answer_mod[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+}
+void Base256uMathTests::divide::in_place_remainder_n_less() {
+	// if remainder_n is less than left_n, then left_n is treated as if it were
+	// of size remainder_n. Guarantees truncation.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 0, 0, 0, 0 }; //, 88, 139, 0 };
+	unsigned char mod[7]; // the remainder has 9 significant chars
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	unsigned char answer[] = { 250, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 91, 30, 23, 149, 189, 75, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == answer[i]);
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		assert(mod[i] == answer_mod[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+}
+void Base256uMathTests::divide::in_place_remainder_n_zero() {
+	// if remainder_n is zero, then the function behaves as if left_n
+	// was zero. Returns a truncated error code.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+	auto code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, 0
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+		assert(mod[i] == (10 + i));
+	}
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+}
 
 Base256uMathTests::divide_no_mod::divide_no_mod() {
 	ideal_case();
@@ -1531,6 +1707,14 @@ Base256uMathTests::divide_no_mod::divide_no_mod() {
 	left_n_less();
 	dst_n_less();
 	dst_n_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_is_zero();
+	in_place_left_n_zero();
+	in_place_right_is_zero();
+	in_place_right_n_zero();
+	in_place_left_n_less();
 }
 void Base256uMathTests::divide_no_mod::ideal_case() {
 	std::size_t left = 0b11001000000000111111010,
@@ -1683,6 +1867,104 @@ void Base256uMathTests::divide_no_mod::dst_n_zero() {
 	}
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
+void Base256uMathTests::divide_no_mod::in_place_ideal_case() {
+	std::size_t left = 0b11001000000000111111010,
+		right = 0b1100100010000,
+		answer = left / right;
+	auto code = Base256uMath::divide_no_mod(
+		&left, sizeof(left),
+		&right, sizeof(right)
+	);
+	assert(left == answer);
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide_no_mod::in_place_big_ideal_case() {
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char answer[] = { 91, 1 };
+	auto code = Base256uMath::divide_no_mod(
+		left, sizeof(left),
+		right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(answer); i++) {
+		assert(left[i] == answer[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide_no_mod::in_place_left_is_zero() {
+	// if left is zero, then dst and mod become all zeros
+
+	unsigned char left[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	auto code = Base256uMath::divide_no_mod(
+		left, sizeof(left),
+		right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::divide_no_mod::in_place_right_is_zero() {
+	// if right is zero, then nothing happens and a division by zero error code is returned
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 0;
+	auto code = Base256uMath::divide_no_mod(
+		left, sizeof(left),
+		&right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::divide_no_mod::in_place_right_n_zero() {
+	// if right_n is zero, then right is assumed to be all zeros and the function
+	// behaves as if right were zero.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 5;
+	auto code = Base256uMath::divide_no_mod(
+		left, sizeof(left),
+		&right, 0
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::divide_no_mod::in_place_left_n_less() {
+	// left > right, but 0 < left_n < right_n. 
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	assert(sizeof(left) < sizeof(right));
+	auto code = Base256uMath::divide_no_mod(
+		left, sizeof(left),
+		right, sizeof(right)
+	);
+	unsigned char answer[] = { 139, 2, 0, 0, 0, 0, 0, 0, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == answer[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+}
+void Base256uMathTests::divide_no_mod::in_place_left_n_zero() {
+	// if left_n is zero, then it is assumed to be all zeros.
+	// that means dst and mod will be all zeros
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	auto code = Base256uMath::divide_no_mod(
+		left, 0,
+		right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+
 
 Base256uMathTests::mod::mod() {
 	ideal_case();
@@ -1694,6 +1976,14 @@ Base256uMathTests::mod::mod() {
 	left_n_less();
 	dst_n_less();
 	dst_n_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_is_zero();
+	in_place_left_n_zero();
+	in_place_right_is_zero();
+	in_place_right_n_zero();
+	in_place_left_n_less();
 }
 void Base256uMathTests::mod::ideal_case() {
 	std::size_t left = 0b11001000000000111111010,
@@ -1832,12 +2122,102 @@ void Base256uMathTests::mod::dst_n_zero() {
 	}
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
+void Base256uMathTests::mod::in_place_ideal_case() {
+	std::size_t left = 0b11001000000000111111010,
+		right = 0b1100100010000,
+		answer = left % right;
+	auto code = Base256uMath::mod(&left, sizeof(left), &right, sizeof(right));
+	assert(left == answer);
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::mod::in_place_big_ideal_case() {
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char answer[] = { 101, 110, 228, 117, 44, 39, 11, 193, 83, 0 };
+	auto code = Base256uMath::mod(left, sizeof(left), right, sizeof(right));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == answer[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::mod::in_place_left_is_zero() {
+	unsigned char left[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	auto code = Base256uMath::mod(
+		left, sizeof(left),
+		right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::mod::in_place_left_n_zero() {
+	// if left_n is zero, then it is assumed to be all zeros.
+	// that means dst will be all zeros
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	auto code = Base256uMath::mod(
+		left, 0,
+		right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == 0);
+	}
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
+void Base256uMathTests::mod::in_place_right_is_zero() {
+	// if right is zero, then nothing happens and a division by zero error code is returned
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 0;
+	auto code = Base256uMath::mod(
+		left, sizeof(left),
+		&right, sizeof(right)
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::mod::in_place_right_n_zero() {
+	// if right_n is zero, then right is assumed to be all zeros and the function
+	// behaves as if right were zero.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 5;
+	auto code = Base256uMath::mod(
+		left, sizeof(left),
+		&right, 0
+	);
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == (i + 10));
+	}
+	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::mod::in_place_left_n_less() {
+	// left > right, but 0 < left_n < right_n. 
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	assert(sizeof(left) < sizeof(right));
+	auto code = Base256uMath::mod(
+		left, sizeof(left),
+		right, sizeof(right)
+	);
+	unsigned char answer[] = { 69, 102, 238, 175, 91, 120, 162, 41, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == answer[i]);
+	}
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+}
 
 Base256uMathTests::log2::log2() {
 	ideal_case();
 	big_ideal_case();
 	src_is_zero();
 	src_n_zero();
+	dst_n_zero();
 }
 void Base256uMathTests::log2::ideal_case() {
 	unsigned int src = 0b00010000000100000;
@@ -1872,6 +2252,15 @@ void Base256uMathTests::log2::src_n_zero() {
 	auto code = Base256uMath::log2(&src, 0, &dst, sizeof(dst));
 	assert(dst == 1234567890);
 	assert(code == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO);
+}
+void Base256uMathTests::log2::dst_n_zero() {
+	// if dst_n is zero, then nothing happens and truncated warning code is returned
+	
+	unsigned int src = 1337;
+	std::size_t dst = 1234567890;
+	auto code = Base256uMath::log2(&src, sizeof(src), &dst, 0);
+	assert(dst == 1234567890);
+	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
 
 Base256uMathTests::log256::log256() {
