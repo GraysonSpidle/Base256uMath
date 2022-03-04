@@ -1086,18 +1086,25 @@ int Base256uMath::divide(
 	void* const remainder,
 	std::size_t remainder_n
 ) {
+	if (!dividend_n)
+		return ErrorCodes::OK;
+
 	void* quotient = malloc(dividend_n);
 	if (!quotient)
 		return ErrorCodes::OOM;
 
-	auto code = divide(dividend, dividend_n, divisor, divisor_n, quotient, dividend_n, remainder, remainder_n);
+	if (divide(dividend, dividend_n, divisor, divisor_n, quotient, dividend_n, remainder, remainder_n) == ErrorCodes::DIVIDE_BY_ZERO) {
+		free(quotient);
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
 
 	if (Base256uMath::is_zero(dividend, dividend_n))
 		memset(remainder, 0, remainder_n);
 	memcpy(dividend, quotient, dividend_n);
+
 	free(quotient);
 
-	return code;
+	return ErrorCodes::OK;
 }
 
 int Base256uMath::divide(
@@ -1183,11 +1190,17 @@ int Base256uMath::divide_no_mod(
 	const void* const right,
 	std::size_t right_n
 ) {
+	if (!left_n)
+		return ErrorCodes::OK;
+
 	void* remainder = malloc(left_n);
 	if (!remainder)
 		return ErrorCodes::OOM;
 
-	auto code = divide(left, left_n, right, right_n, remainder, left_n);
+	if (divide(left, left_n, right, right_n, remainder, left_n) == ErrorCodes::DIVIDE_BY_ZERO) {
+		free(remainder);
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
 
 	free(remainder);
 	return 0;
@@ -1344,16 +1357,22 @@ int Base256uMath::mod(const void* const left, std::size_t left_n, std::size_t ri
 }
 
 int Base256uMath::mod(void* const left, std::size_t left_n, const void* const right, std::size_t right_n) {
+	if (!left_n)
+		return ErrorCodes::OK;
+
 	void* dst = malloc(left_n);
 	if (!dst)
 		return ErrorCodes::OOM;
 
-	auto code = mod(left, left_n, right, right_n, dst, left_n);
+	if (mod(left, left_n, right, right_n, dst, left_n) == ErrorCodes::DIVIDE_BY_ZERO) {
+		free(dst);
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
 
 	memcpy(left, dst, left_n);
 	free(dst);
 
-	return code;
+	return ErrorCodes::OK;
 }
 
 int Base256uMath::mod(void* const left, std::size_t left_n, std::size_t right) {
@@ -1969,10 +1988,6 @@ int Base256uMath::bitwise_or(
 	for (std::size_t i = 0; i < left_n; i++) {
 		l_ptr[i] |= r_ptr[i] * (i < right_n);
 	}
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (left_n < right_n)
-		return ErrorCodes::TRUNCATED;
-#endif
 	return ErrorCodes::OK;
 }
 
@@ -1990,6 +2005,10 @@ int Base256uMath::bitwise_xor(
 	for (std::size_t i = 0; i < dst_n; i++) {
 		dst_ptr[i] = (l_ptr[i] * (i < left_n)) ^ (r_ptr[i] * (i < right_n));
 	}
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (dst_n < MIN(left_n, right_n))
+		return ErrorCodes::TRUNCATED;
+#endif
 	return ErrorCodes::OK;
 }
 

@@ -426,6 +426,7 @@ namespace Base256uMath {
 	);
 
 	/* Divides two given numbers and stores the quotient into the dividend and stores the remainder its own separate number.
+	This is the equivalent to the /= operator.
 	Parameters:
 	* left : pointer to the dividend.
 	* left_n : the size of the dividend in bytes.
@@ -439,7 +440,7 @@ namespace Base256uMath {
 
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
-	* TRUNCATED : either your dst was too small or remainder was too small. Not fatal.
+	* TRUNCATED : either your left was too small or remainder was too small. Not fatal.
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/

@@ -12,7 +12,6 @@ I tried to be comprehensive in my testing, but writing unit tests is boring so I
 #define __BASE256UMATHTESTS__
 
 /* TODO
-- is_zero: src_n_zero()
 - compare:
 	- left_n_zero()
 	- right_n_zero()
@@ -50,9 +49,9 @@ namespace Base256uMathTests {
 	};
 	struct compare {
 		// Given any sized number, the function should return:
-		//	>0 : if left is greater than right.
+		//	1 : if left is greater than right.
 		//	0  : if left is equal to right.
-		//	<0 : if left is less than right.
+		//	-1 : if left is less than right.
 		// If the numbers are of different sizes, then we treat the smallest
 		// sized one as if we added bytes with zeros to the front in an attempt
 		// to make it the same size.
@@ -81,6 +80,9 @@ namespace Base256uMathTests {
 		void l_smaller_less();
 		void big_l_bigger_less();
 		void big_l_smaller_less();
+
+		void left_n_zero();
+		void right_n_zero();
 		
 	};
 	struct max {
