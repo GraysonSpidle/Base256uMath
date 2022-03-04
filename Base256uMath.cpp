@@ -5,9 +5,6 @@ Function definitions of all the declared functions in Base256uMath.h
 Author: Grayson Spidle
 */
 
-
-#include "Base256uMath.h"
-
 #if !defined(_BASE256UMATH_COMPILER_MSVC) && !defined(_BASE256UMATH_COMPILER_GCC) && !defined(_BASE256UMATH_COMPILER_NVCC)
 // Trying to automatically detect compiler
 #ifdef _MSC_VER
@@ -21,14 +18,12 @@ Author: Grayson Spidle
 #endif
 #endif
 
-#if defined(_BASE256UMATH_COMPILER_MSVC) || defined(_BASE256UMATH_COMPILER_GCC)
+#ifndef _BASE256UMATH_COMPILER_NVCC
+#include "Base256uMath.h"
 #include <cstring> // memset
+#else
+#include "Base256uMath.cuh"
 #endif // nvcc has memset natively
-
-// Intrinsics
-#ifdef _BASE256UMATH_COMPILER_MSVC
-#include <intrin.h>
-#endif
 
 #ifndef MIN(a,b)
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -46,7 +41,6 @@ Author: Grayson Spidle
 #define BASE256UMATH_FAST_OPERATORS 1
 #endif // BASE256UMATH_FAST_OPERATORS
 
-
 // Automatically detecting processor architecture
 #ifndef BASE256UMATH_ARCHITECTURE
 #ifdef _BASE256UMATH_COMPILER_MSVC
@@ -57,7 +51,7 @@ Author: Grayson Spidle
 #define BASE256UMATH_ARCHITECTURE 32
 #endif
 
-#elif defined(_BASE256UMATH_COMPILER_GCC)
+#elif defined(_BASE256UMATH_COMPILER_GCC) || defined(_BASE256UMATH_COMPILER_NVCC)
 
 #if defined(__x86_64__) || defined(__ppc64__)
 #define BASE256UMATH_ARCHITECTURE 64
@@ -65,8 +59,6 @@ Author: Grayson Spidle
 #define BASE256UMATH_ARCHITECTURE 32
 #endif
 
-#elif defined(_BASE256UMATH_COMPILER_NVCC)
-#error TODO
 #else
 #error Could not automatically detect processor architecture
 #endif

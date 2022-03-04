@@ -1,11 +1,14 @@
 #define BASE256UMATH_SUPPRESS_TRUNCATED_CODE 0
 #define BASE256UMATH_FAST_OPERATORS 1
+#ifdef __NVCC__
+#include "Base256uMath.cuh"
+#include "UnitTests.cuh"
+#else
 #include "Base256uMath.h"
 #include "UnitTests.h"
+#endif 
 #include <cassert>
-#include <cstring>
 #include <iostream>
-#include <string>
 
 int main() {
 #ifndef _DEBUG
