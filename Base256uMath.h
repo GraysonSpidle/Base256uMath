@@ -406,7 +406,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
-	* OOM
+	* OOM : required additional memory but was denied.
 	*/
 	int divide(
 		const void* const left,
@@ -458,7 +458,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
-	* OOM
+	* OOM : required additional memory but was denied.
 	*/
 	int divide_no_mod(
 		const void* const left,
@@ -502,7 +502,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
-	* OOM?
+	* OOM : required additional memory but was denied.
 	*/
 	int mod(
 		const void* const left,

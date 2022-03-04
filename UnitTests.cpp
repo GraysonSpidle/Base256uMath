@@ -2924,9 +2924,9 @@ void Base256uMathTests::byte_shift_left::ideal_case() {
 	std::size_t src = 13056761402769258424;
 	std::size_t by = 5;
 	std::size_t dst;
+	std::size_t answer = src << (by * 8);
 	assert(sizeof(src) > by && by > 0 && sizeof(src) == sizeof(dst));
 	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
-	auto answer = 13056761402769258424 << by * 8;
 	assert(dst == answer);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }

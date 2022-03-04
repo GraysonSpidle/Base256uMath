@@ -59,7 +59,7 @@ Author: Grayson Spidle
 
 #elif defined(_BASE256UMATH_COMPILER_GCC)
 
-#ifdef __x86_64__ || __ppc64__
+#if defined(__x86_64__) || defined(__ppc64__)
 #define BASE256UMATH_ARCHITECTURE 64
 #else
 #define BASE256UMATH_ARCHITECTURE 32
@@ -799,7 +799,7 @@ inline int binary_long_division(
 	void* const remainder,
 	std::size_t& remainder_n
 ) {
-	// Now we know that dividend > divisor, we must set up some numbers.
+	// we assume that dividend > divisor, now we must set up some numbers.
 
 	// Copy dividend into remainder
 	memcpy(remainder, dividend, dividend_n);
@@ -891,6 +891,113 @@ inline int binary_long_division(
 	}
 #endif
 	return Base256uMath::ErrorCodes::OK;
+}
+
+// in-place
+inline int binary_long_division(
+	void* const dividend,
+	std::size_t& dividend_n,
+	const void* const divisor,
+	std::size_t& divisor_n,
+	void* const remainder,
+	std::size_t& remainder_n
+) {
+	// in-place binary long division *should* work the same way as regular just with a few tweaks
+
+	// Copy dividend into remainder
+	memcpy(remainder, dividend, dividend_n);
+
+	// In binary long division, you do a kind of bit shifting so we need
+	// to know the index of the most significant bit for both numbers.
+
+	Base256uMath::bit_size_t dividend_log2;
+	Base256uMath::bit_size_t divisor_log2;
+
+	Base256uMath::log2(dividend, dividend_n, dividend_log2);
+	// That was the last use of the dividend parameter with its original data.
+	// That means we are now free to use dividend as the quotient
+
+	memset(dividend, 0, dividend_n);
+
+	Base256uMath::log2(divisor, divisor_n, divisor_log2);
+
+	// To get the amount we must bit shift the divisor by, we must subtract
+	// the two log2 numbers. We aren't concerned about an underflow error,
+	// because we have already checked that dividend > divisor so at minimum
+	// the difference would be 0.
+
+	Base256uMath::bit_size_t log2_diff;
+	Base256uMath::subtract(
+		dividend_log2, sizeof(dividend_log2),
+		divisor_log2, sizeof(divisor_log2),
+		log2_diff, sizeof(log2_diff)
+	);
+
+	// This number is for an offset for the quotient
+	std::size_t bytes;
+	Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+
+	// We need to copy the divisor because we need to be able to bit shift it
+
+	auto divisor_copy = new unsigned char[dividend_n];
+	if (!divisor_copy)
+		return Base256uMath::ErrorCodes::OOM;
+
+	// Now here's where the dividing starts
+
+	// while remainder >= divisor (not the divisor_copy)
+	while (Base256uMath::compare(remainder, remainder_n, divisor, divisor_n) >= 0) {
+		// At the beginning of each pass, we reset the divisor_copy and bit shift it again
+		memset(divisor_copy, 0, dividend_n);
+		memcpy(divisor_copy, divisor, MIN(divisor_n, dividend_n));
+		Base256uMath::bit_shift_left(divisor_copy, dividend_n, log2_diff, sizeof(log2_diff));
+
+		// check if the newly shifted divisor_copy is <=> to remainder
+
+		int cmp = Base256uMath::compare(
+			remainder, remainder_n,
+			divisor_copy, dividend_n
+		);
+		switch (cmp) {
+		case 0: // remainder == divisor_copy
+		case 1: // remainder > divisor_copy
+			// Do the subtraction
+			Base256uMath::subtract(
+				remainder, remainder_n,
+				divisor_copy, dividend_n
+			);
+			// if the subtract function returns a flow warning code, then that's bad
+			// and is an indicator of flawed logic
+
+			// here, we are essentially setting the bit in the quotient.
+			// We use `bytes` to essentially byte shift for us through pointer offsetting
+			// Then we take the remaining amount of bits to shift and shift by that.
+			if (dividend_n - bytes)
+				reinterpret_cast<unsigned char*>(dividend)[bytes] |= (unsigned char)1 << (log2_diff[0] & 0b111);
+		case -1: // remainder < divisor_copy
+			// All cases eventually get here. In binary long division, you keep
+			// shifting to the right until you can no longer do so. This effectively
+			// does that.
+			Base256uMath::decrement(log2_diff, sizeof(log2_diff));
+			Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+			break;
+		}
+	}
+	delete[] divisor_copy;
+
+	// Now we check if there could be possible truncation
+	// To guarantee no truncation whatsoever these conditions must be met:
+	// 	- dst_n and remainder_n must be >= to dividend_n
+	// 	- dividend_n >= divisor_n
+	// This is just to be 100% careful, but it's a warning code for a reason,
+	// it is only a suggestion and is in no way fatal.
+
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (dividend_n < divisor_n) {
+		return Base256uMath::ErrorCodes::TRUNCATED;
+	}
+#endif
+	return Base256uMath::ErrorCodes::OK;
 
 }
 
@@ -955,8 +1062,8 @@ int Base256uMath::divide(
 		return ErrorCodes::OK;
 	}
 
-	return binary_long_division(dividend, dividend_n, divisor, divisor_n, dst, dst_n, remainder, remainder_n);
-	
+	//memcpy(dst, dividend, dividend_n);
+	return binary_long_division(dividend, dividend_n, divisor, divisor_n, dst, dst_n, remainder, remainder_n);	
 }
 
 int Base256uMath::divide(
@@ -971,14 +1078,57 @@ int Base256uMath::divide(
 	return divide(left, left_n, &right, sizeof(right), dst, dst_n, remainder, remainder_n);
 }
 
+
 int Base256uMath::divide(
-	void* const left,
-	std::size_t left_n,
-	const void* const right,
-	std::size_t right_n,
+	void* const dividend,
+	std::size_t dividend_n,
+	const void* const divisor,
+	std::size_t divisor_n,
 	void* const remainder,
 	std::size_t remainder_n
 ) {
+	/*
+	dividend_n = MIN(dividend_n, remainder_n);
+
+	if (Base256uMath::is_zero(divisor, divisor_n)) {
+		// cannot divide by zero
+		return ErrorCodes::DIVIDE_BY_ZERO;
+	}
+
+	memset(remainder, 0, remainder_n);
+
+	if (Base256uMath::is_zero(dividend, dividend_n)) {
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (remainder_n == 0)
+			return ErrorCodes::TRUNCATED;
+#endif
+		// 0 divided by anything is 0 and the remainder is also 0.
+		return ErrorCodes::OK;
+	}
+
+	// Check, before we do any division, if dividend > divisor.
+
+	switch (Base256uMath::compare(dividend, dividend_n, divisor, divisor_n)) {
+	case -1: // dividend < divisor
+		// Quotient becomes 0 and remainder becomes dividend
+		memcpy(remainder, dividend, dividend_n);
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (MIN(dst_n, remainder_n) < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	case 0: // dividend == divisor
+		// Quotient becomes 1 and remainder becomes 0
+		reinterpret_cast<unsigned char*>(dst)[0] = 1;
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+		if (remainder_n < dividend_n)
+			return ErrorCodes::TRUNCATED;
+#endif
+		return ErrorCodes::OK;
+	}
+
+	return binary_long_division(dividend, dividend_n, divisor, divisor_n, remainder, remainder_n);
+	*/
 	return 0;
 }
 
@@ -1304,7 +1454,7 @@ void bit_shift_left_fast(
 #if BASE256UMATH_ARCHITECTURE >= 64
 	// 64 bit
 	if (dst_n & 0b1000) { // checking divisibility 
-		if (dst_ptr - dst < dst_n) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) < dst_n) // checking if this is the very first number in the bigger number
 			*dst_ptr |= buffer;
 
 		*(reinterpret_cast<uint64*>(dst_ptr) - 1) <<= by_bits;
@@ -1319,7 +1469,7 @@ void bit_shift_left_fast(
 
 	// 32 bit
 	if (dst_n & 0b100) { // checking divisibility 
-		if (dst_ptr - dst < dst_n) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) < dst_n) // checking if this is the very first number in the bigger number
 			*dst_ptr |= buffer;
 
 		*(reinterpret_cast<uint32*>(dst_ptr) - 1) <<= by_bits;
@@ -1333,7 +1483,7 @@ void bit_shift_left_fast(
 
 	// 16 bit
 	if (dst_n & 0b10) { // checking divisibility 
-		if (dst_ptr - dst < dst_n) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) < dst_n) // checking if this is the very first number in the bigger number
 			*dst_ptr |= buffer;
 
 		*(reinterpret_cast<uint16*>(dst_ptr) - 1) <<= by_bits;
@@ -1347,7 +1497,7 @@ void bit_shift_left_fast(
 
 	// 8 bit
 	if (dst_n & 0b1) {
-		if (dst_ptr - dst < dst_n)
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) < dst_n)
 			*dst_ptr |= buffer;
 
 		*(dst_ptr - 1) <<= by_bits;
@@ -1537,7 +1687,7 @@ void bit_shift_right_fast(
 #if BASE256UMATH_ARCHITECTURE >= 64
 	// 64 bit
 	if (dst_n & 0b1000) { // checking divisibility 
-		if (dst_ptr - dst > 0) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) > 0) // checking if this is the very first number in the bigger number
 			*(dst_ptr - 1) |= buffer;
 
 		*reinterpret_cast<uint64*>(dst_ptr) >>= by_bits;
@@ -1552,7 +1702,7 @@ void bit_shift_right_fast(
 
 	// 32 bit
 	if (dst_n & 0b100) { // checking divisibility 
-		if (dst_ptr - dst > 0) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) > 0) // checking if this is the very first number in the bigger number
 			*(dst_ptr - 1) |= buffer;
 
 		*reinterpret_cast<uint32*>(dst_ptr) >>= by_bits;
@@ -1566,7 +1716,7 @@ void bit_shift_right_fast(
 
 	// 16 bit
 	if (dst_n & 0b10) { // checking divisibility 
-		if (dst_ptr - dst > 0) // checking if this is the very first number in the bigger number
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) > 0) // checking if this is the very first number in the bigger number
 			*(dst_ptr - 1) |= buffer;
 
 		*reinterpret_cast<uint16*>(dst_ptr) >>= by_bits;
@@ -1580,7 +1730,7 @@ void bit_shift_right_fast(
 
 	// 8 bit
 	if (dst_n & 0b1) {
-		if (dst_ptr - dst > 0)
+		if (dst_ptr - reinterpret_cast<unsigned char*>(dst) > 0)
 			*(dst_ptr - 1) |= buffer;
 
 		*dst_ptr >>= by_bits;
@@ -1857,7 +2007,6 @@ int Base256uMath::bitwise_not(
 	}
 	return ErrorCodes::OK;
 }
-
 
 int Base256uMath::byte_shift_left(
 	const void* const src,
