@@ -384,7 +384,7 @@ void Base256uMathTests::max::big_ideal_case_right() {
 	assert(ptr == right);
 }
 void Base256uMathTests::max::left_bigger_left() {
-	std::size_t left = 17458641706312530918;
+	std::size_t left = 6969696696;
 	unsigned int right = 21360;
 	assert(sizeof(left) > sizeof(right));
 	auto ptr = Base256uMath::max(&left, sizeof(left), &right, sizeof(right));
