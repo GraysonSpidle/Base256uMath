@@ -19,7 +19,7 @@ I've had a lot of fun writing it and I learned a lot on my journey.
 - `C++14` language standard
 - Big Endian machine
 - 64 bit machines (until I can confirm that it works on 32 bit).
-- msvc compiler (gcc and nvcc support are also coming)
+- msvc and gcc compiler (nvcc support is coming)
 
 ## Installation
 Your typical installation should be fairly simple. Drag and drop the header and source files into their appropriate directories in your project.
@@ -29,6 +29,18 @@ For the core of the library you'll want:
 - `Base256uMath.cpp`
 
 The unit tests are there just for you to test to see if the library works as intended in your environment.
+
+### For CUDA
+I'll admit, I don't know much about nvcc so don't come here for a tutorial. However, this is what I had to do to get the unit tests compiled:
+
+- First change the `.cpp` files to `.cu` files. Otherwise it won't recognize stuff like `__global__`.
+- Then do these commands (`sm_50` is the architecture of my GPU, change it to yours):
+```
+nvcc -arch sm_50 -m 64 --device-c Tests.cu Base256uMath.cu UnitTests.cu CUDAUnitTests.cu
+nvcc -arch sm_50 -m 64 -o Tests Tests.o Base256uMath.o UnitTests.o CUDAUnitTests.o
+```
+- It'll have a lot of warnings, but you are probably used to that kind of stuff now :P
+- Run with `./Tests`
 
 ## Tutorial
 I'm gonna write a short tutorial on how to use this. In case my future self is too lazy to figure it out himself.
