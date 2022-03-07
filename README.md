@@ -103,7 +103,7 @@ int main() {
 - in-place multiply
 - in-place divide
 - in-place modulo
-- gcc and nvcc compatibility
+- nvcc compatibility
 - 32 bit compatibility
 - polishing clarity in documentation
 
