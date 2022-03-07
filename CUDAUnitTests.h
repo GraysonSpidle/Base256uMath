@@ -1,6 +1,15 @@
 #ifndef __BASE256UMATH_CUDA_UNIT_TESTS_H__
 #define __BASE256UMATH_CUDA_UNIT_TESTS_H__
 
+/* TODO
+max:
+	left_n_zero()
+	right_n_zero()
+min
+	left_n_zero()
+	right_n_zero()
+*/
+
 namespace Base256uMathTests {
 	namespace CUDA {
 		// Tests all of them

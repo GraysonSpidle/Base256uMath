@@ -767,7 +767,180 @@ void Base256uMathTests::CUDA::max::big_left_smaller_right() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::min::test() {}
+void Base256uMathTests::CUDA::min::test() {
+	ideal_case_left();
+	ideal_case_right();
+	big_ideal_case_left();
+	big_ideal_case_right();
+
+	left_bigger_left();
+	left_smaller_left();
+	left_bigger_right();
+	left_smaller_right();
+
+	big_left_bigger_left();
+	big_left_smaller_left();
+	big_left_bigger_right();
+	big_left_smaller_right();
+}
+
+__global__
+void min_ideal_case_left_kernel(int* code) {
+	*code = 0;
+	unsigned int left = 8969;
+	unsigned int right = 11219;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &left) {
+		*code = 1;
+	}
+}
+__global__
+void min_ideal_case_right_kernel(int* code) {
+	*code = 0;
+	unsigned int left = 34063;
+	unsigned int right = 16197;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &right) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_ideal_case_left_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 29, 236, 239, 48, 243, 6, 109, 228, 82 };
+	unsigned char right[] = { 153, 65, 158, 142, 123, 85, 44, 225, 162 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != left) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_ideal_case_right_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 83, 167, 5, 136, 162, 1, 249, 140, 156 };
+	unsigned char right[] = { 102, 251, 89, 166, 213, 231, 56, 54, 20 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != right) {
+		*code = 1;
+	}
+}
+__global__
+void min_left_bigger_left_kernel(int* code) {
+	*code = 0;
+	std::size_t left = 28606;
+	unsigned int right = 34288;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &left) {
+		*code = 1;
+	}
+}
+__global__
+void min_left_smaller_left_kernel(int* code) {
+	*code = 0;
+	unsigned int left = 43810;
+	std::size_t right = 47275;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &left) {
+		*code = 1;
+	}
+}
+__global__
+void min_left_bigger_right_kernel(int* code) {
+	*code = 0;
+	std::size_t left = 49660;
+	unsigned int right = 7010;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &right) {
+		*code = 1;
+	}
+}
+__global__
+void min_left_smaller_right_kernel(int* code) {
+	*code = 0;
+	unsigned int left = 63729;
+	std::size_t right = 46223;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, sizeof(right));
+	if (ptr != &right) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_left_bigger_left_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 123, 68, 215, 46, 186, 97, 149, 27, 149, 0, 0 };
+	unsigned char right[] = { 120, 114, 238, 213, 227, 7, 228, 47, 159 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != left) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_left_smaller_left_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 253, 37, 145, 49, 69, 19, 171, 189, 27 };
+	unsigned char right[] = { 67, 228, 217, 39, 59, 24, 249, 194, 55, 0, 0 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != left) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_left_bigger_right_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 49, 27, 111, 206, 109, 89, 42, 220, 227, 0, 0 };
+	unsigned char right[] = { 93, 22, 212, 80, 84, 184, 37, 130, 194 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != right) {
+		*code = 1;
+	}
+}
+__global__
+void min_big_left_smaller_right_kernel(int* code) {
+	*code = 0;
+	unsigned char left[] = { 87, 220, 65, 201, 73, 117, 94, 29, 173 };
+	unsigned char right[] = { 91, 247, 82, 39, 62, 19, 90, 174, 118, 0, 0 };
+	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
+	if (ptr != right) {
+		*code = 1;
+	}
+}
+
+void Base256uMathTests::CUDA::min::ideal_case_left() {
+	max_test_macro(min_ideal_case_left_kernel);
+}
+void Base256uMathTests::CUDA::min::ideal_case_right() {
+	max_test_macro(min_ideal_case_right_kernel);
+}
+void Base256uMathTests::CUDA::min::big_ideal_case_left() {
+	max_test_macro(min_big_ideal_case_left_kernel);
+}
+void Base256uMathTests::CUDA::min::big_ideal_case_right() {
+	max_test_macro(min_big_ideal_case_right_kernel);
+}
+void Base256uMathTests::CUDA::min::left_bigger_left() {
+	max_test_macro(min_left_bigger_left_kernel);
+}
+void Base256uMathTests::CUDA::min::left_smaller_left() {
+	max_test_macro(min_left_smaller_left_kernel);
+}
+void Base256uMathTests::CUDA::min::left_bigger_right() {
+	max_test_macro(min_left_bigger_right_kernel);
+}
+void Base256uMathTests::CUDA::min::left_smaller_right() {
+	max_test_macro(min_left_smaller_right_kernel);
+}
+void Base256uMathTests::CUDA::min::big_left_bigger_left() {
+	max_test_macro(min_big_left_bigger_left_kernel);
+}
+void Base256uMathTests::CUDA::min::big_left_smaller_left() {
+	max_test_macro(min_big_left_smaller_left_kernel);
+}
+void Base256uMathTests::CUDA::min::big_left_bigger_right() {
+	max_test_macro(min_big_left_bigger_right_kernel);
+}
+void Base256uMathTests::CUDA::min::big_left_smaller_right() {
+	max_test_macro(min_big_left_smaller_right_kernel);
+}
 
 // ===================================================================================
 

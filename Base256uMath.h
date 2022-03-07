@@ -152,7 +152,7 @@ namespace Base256uMath {
 	* right : if right is less than left.
 	* left : if left is equal to right.
 	*/
-	const void* const min(
+	__host__ __device__ const void* const min(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -160,7 +160,7 @@ namespace Base256uMath {
 	);
 
 	// This is the non-const version, it behaves just like the const version.
-	void* const min(
+	__host__ __device__ void* const min(
 		void* const left,
 		std::size_t left_n,
 		void* const right,
