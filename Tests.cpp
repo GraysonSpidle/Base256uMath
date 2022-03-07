@@ -2,7 +2,9 @@
 #define BASE256UMATH_FAST_OPERATORS 1
 #include "Base256uMath.h"
 #include "UnitTests.h"
+#ifdef __NVCC__
 #include "CUDAUnitTests.h"
+#endif
 #include <iostream>
 
 int main() {
