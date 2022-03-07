@@ -98,8 +98,8 @@ void Base256uMathTests::compare::big_ideal_case_equal() {
 	unsigned char r[] = { 183, 79, 180, 87, 57, 45, 214, 45, 189 };
 
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp == 0);
 }
@@ -111,8 +111,8 @@ void Base256uMathTests::compare::big_ideal_case_greater() {
 	unsigned char r[] = { 125, 225, 204, 133, 182, 137, 171, 180, 105 };
 
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp > 0);
 }
@@ -124,8 +124,8 @@ void Base256uMathTests::compare::big_ideal_case_less() {
 	unsigned char r[] = { 97, 197, 235, 80, 143, 160, 4, 88, 188 };
 
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp < 0);
 }
@@ -161,8 +161,8 @@ void Base256uMathTests::compare::big_l_bigger_equal() {
 
 	assert(sizeof(l) > sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp == 0);
 }
@@ -172,8 +172,8 @@ void Base256uMathTests::compare::big_l_smaller_equal() {
 
 	assert(sizeof(l) < sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp == 0);
 }
@@ -209,8 +209,8 @@ void Base256uMathTests::compare::big_l_bigger_greater() {
 
 	assert(sizeof(l) > sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp > 0);
 }
@@ -220,8 +220,8 @@ void Base256uMathTests::compare::big_l_smaller_greater() {
 
 	assert(sizeof(l) < sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp > 0);
 }
@@ -257,8 +257,8 @@ void Base256uMathTests::compare::big_l_bigger_less() {
 
 	assert(sizeof(l) > sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp < 0);
 }
@@ -268,8 +268,8 @@ void Base256uMathTests::compare::big_l_smaller_less() {
 
 	assert(sizeof(l) < sizeof(r));
 	int cmp = Base256uMath::compare(
-		&l, sizeof(l),
-		&r, sizeof(r)
+		l, sizeof(l),
+		r, sizeof(r)
 	);
 	assert(cmp < 0);
 }
