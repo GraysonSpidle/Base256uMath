@@ -82,7 +82,7 @@ namespace Base256uMath {
 	Unlike memcmp, you can rely on the return values being 1, 0, or -1.
 	So it is safe to use in a switch-case block.
 	*/
-	int compare(
+	__host__ __device__ int compare(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
