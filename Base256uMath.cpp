@@ -18,11 +18,9 @@ Author: Grayson Spidle
 #endif
 #endif
 
-#ifndef _BASE256UMATH_COMPILER_NVCC
 #include "Base256uMath.h"
+#ifndef _BASE256UMATH_COMPILER_NVCC
 #include <cstring> // memset
-#else
-#include "Base256uMath.cuh"
 #endif // nvcc has memset natively
 
 #ifndef MIN(a,b)

@@ -1,14 +1,8 @@
-#ifdef _BASE256UMATH_COMPILER_NVCC
-#include "UnitTests.cuh"
-#include "Base256uMath.cuh"
-#else
 #include "UnitTests.h"
 #include "Base256uMath.h"
-#endif
 
 #include <cassert>
 #include <string>
-#include <sstream>
 
 void Base256uMathTests::test_unit_tests() {
 	is_zero();

@@ -8,25 +8,8 @@ environments.
 I tried to be comprehensive in my testing, but writing unit tests is boring so I might miss a few things.
 */
 
-#ifndef __BASE256UMATHTESTS__
-#define __BASE256UMATHTESTS__
-
-/* TODO
-- compare:
-	- left_n_zero()
-	- right_n_zero()
-- max:
-	- left_n_zero()
-	- right_n_zero()
-- min:
-	- left_n_zero()
-	- right_n_zero()
-- increment:
-	- n_is_zero()
-- decrement:
-	- n_is_zero()
-
-*/
+#ifndef __BASE256UMATH_UNIT_TESTS_H__
+#define __BASE256UMATH_UNIT_TESTS_H__
 
 namespace Base256uMathTests {
 	// tests all of them
@@ -447,4 +430,4 @@ namespace Base256uMathTests {
 	};
 }
 
-#endif // __BASE256UMATHTESTS__
+#endif // __BASE256UMATH_UNIT_TESTS_H__

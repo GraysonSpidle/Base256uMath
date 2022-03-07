@@ -17,6 +17,10 @@ Targeted for the C++14 standard and big endian machines.
 
 #ifndef __NVCC__
 #include <cstdlib> // std::size_t
+// nvcc defines this macro and is here for cross compatibility for other compilers
+#define __host__
+// nvcc defines this macro and is here for cross compatibility for other compilers
+#define __device__
 #endif
 
 /* 
@@ -57,7 +61,7 @@ namespace Base256uMath {
 	* true : if all bytes in src are 0
 	* false : if any byte in src is not 0
 	*/
-	bool is_zero(
+	__host__ __device__ bool is_zero(
 		const void* const src,
 		std::size_t src_n
 	);
