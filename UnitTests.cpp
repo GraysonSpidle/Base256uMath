@@ -2338,6 +2338,15 @@ Base256uMathTests::bitwise_and::bitwise_and() {
 	left_n_zero();
 	right_n_zero();
 	dst_n_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_bigger();
+	in_place_left_smaller();
+	in_place_big_left_bigger();
+	in_place_big_left_smaller();
+	in_place_left_n_zero();
+	in_place_right_n_zero();
 }
 void Base256uMathTests::bitwise_and::ideal_case() {
 	unsigned short left = 49816;
@@ -2494,7 +2503,7 @@ void Base256uMathTests::bitwise_and::in_place_left_smaller() {
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right));
 	assert(left == answer);
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::in_place_big_left_bigger() {
 	unsigned char left[] = { 53, 138, 217, 66, 48, 69, 213, 139, 91, 163, 230, 8 };
@@ -2516,7 +2525,7 @@ void Base256uMathTests::bitwise_and::in_place_big_left_smaller() {
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::in_place_left_n_zero() {
 	// if left_n is zero, then nothing happens but returns a truncated error code
@@ -2526,7 +2535,7 @@ void Base256uMathTests::bitwise_and::in_place_left_n_zero() {
 	decltype(left) answer = 2912879481;
 	auto code = Base256uMath::bitwise_and(&left, 0, &right, sizeof(right));
 	assert(left == answer);
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::in_place_right_n_zero() {
 	// if right_n is zero, then it is treated as all zeros
