@@ -1848,7 +1848,28 @@ void Base256uMathTests::CUDA::bitwise_or::in_place_right_n_zero() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::bitwise_xor::test() {}
+void Base256uMathTests::CUDA::bitwise_xor::test() {
+	ideal_case();
+	big_ideal_case();
+	left_bigger();
+	left_smaller();
+	big_left_bigger();
+	big_left_smaller();
+	dst_too_small();
+	big_dst_too_small();
+	left_n_zero();
+	right_n_zero();
+	dst_n_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_bigger();
+	in_place_left_smaller();
+	in_place_big_left_bigger();
+	in_place_big_left_smaller();
+	in_place_left_n_zero();
+	in_place_right_n_zero();
+}
 
 __global__
 void bitwise_xor_ideal_case_kernel(int* code, void* output, std::size_t* size) {
@@ -2268,7 +2289,6 @@ void Base256uMathTests::CUDA::bitwise_xor::in_place_left_n_zero() {
 void Base256uMathTests::CUDA::bitwise_xor::in_place_right_n_zero() {
 	bitwise_test_macro(bitwise_xor_in_place_right_n_zero_kernel);
 }
-
 
 // ===================================================================================
 
