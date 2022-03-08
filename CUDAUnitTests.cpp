@@ -2399,11 +2399,603 @@ void Base256uMathTests::CUDA::bitwise_not::src_n_zero() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::byte_shift_left::test() {}
+void Base256uMathTests::CUDA::byte_shift_left::test() {
+	ideal_case();
+	big_ideal_case();
+	src_n_less_than_by();
+	src_n_greater_than_dst_n();
+	src_n_less_than_dst_n();
+	src_n_zero();
+	dst_n_zero();
+	by_is_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_src_n_less_than_by();
+	in_place_src_n_zero();
+	in_place_by_is_zero();
+}
+
+__global__
+void byte_shift_left_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 1305258424;
+	std::size_t by = 5;
+	std::size_t dst;
+	std::size_t answer = src << (by * 8);
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 223, 192, 7, 188, 111, 229, 33, 55, 8 };
+	std::size_t by = 3;
+	unsigned char dst[9];
+	auto return_code = Base256uMath::byte_shift_left(src, sizeof(src), by, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	unsigned char answer[] = { 0, 0, 0, 223, 192, 7, 188, 111, 229 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_left_src_n_less_than_by_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned short src = 1337;
+	std::size_t by = sizeof(src) + 1;
+	unsigned short dst = 394021884;
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 0) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_src_n_greater_than_dst_n_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 39158;
+	std::size_t by = 1;
+	unsigned short dst;
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	decltype(dst) answer = src << (by * 8);
+	if (dst != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_src_n_less_than_dst_n_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 244, 184, 73, 236, 228, 182, 41, 107, 81 };
+	unsigned char dst[] = { 159, 188, 20, 222, 209, 85, 173, 112, 72, 73, 40, 123 };
+	std::size_t by = 3;
+	auto return_code = Base256uMath::byte_shift_left(src, sizeof(src), by, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	unsigned char answer[] = { 0, 0, 0, 244, 184, 73, 236, 228, 182, 0, 0, 0 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_left_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto return_code = Base256uMath::byte_shift_left(src, 0, 3, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_left_dst_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto return_code = Base256uMath::byte_shift_left(src, sizeof(src), 3, dst, 0);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != i + 10) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_left_by_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 1334;
+	unsigned int dst = 39301;
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), 0, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1334) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_in_place_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 258424;
+	std::size_t by = 5;
+	std::size_t answer = src << (by * 8);
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_in_place_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 223, 192, 7, 188, 111, 229, 33, 55, 8 };
+	std::size_t by = 3;
+	auto return_code = Base256uMath::byte_shift_left(src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	unsigned char answer[] = { 0, 0, 0, 223, 192, 7, 188, 111, 229 };
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+__global__
+void byte_shift_left_in_place_src_n_less_than_by_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned short src = 1337;
+	std::size_t by = sizeof(src) + 1;
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != 0) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_left_in_place_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	auto return_code = Base256uMath::byte_shift_left(src, 0, 3);
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != i) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+__global__
+void byte_shift_left_in_place_by_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int src = 133804;
+	auto return_code = Base256uMath::byte_shift_left(&src, sizeof(src), 0);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != 133804) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+
+#define byte_shift_test_macro(kernel_name) \
+int code = -1; \
+int* d_code; \
+auto err = cudaMalloc(&d_code, sizeof(int)); \
+cudaMalloc_check_macro(err); \
+std::size_t size = 15; \
+void* result = malloc(size); \
+if (!result) { \
+	std::cout << "could not allocate enough memory on host" << std::endl; \
+	assert(result != nullptr); \
+} \
+void* d_result; \
+err = cudaMalloc(&d_result, size); \
+cudaMalloc_check_macro(err); \
+std::size_t* d_size; \
+err = cudaMalloc(&d_size, sizeof(std::size_t)); \
+cudaMalloc_check_macro(err); \
+err = cudaMemcpy(d_size, &size, sizeof(std::size_t), cudaMemcpyHostToDevice); \
+cudaMemcpy_check_macro(err); \
+KERNEL_CALL3(kernel_name, d_code, d_result, d_size); \
+err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+err = cudaMemcpy(result, d_result, size, cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+if (code != 0) { \
+	std::cout << "code: " << std::to_string(code) << std::endl; \
+	std::cout << "result: "; \
+	for (std::size_t i = 0; i < size; i++) { \
+		std::cout << std::to_string(reinterpret_cast<unsigned char*>(result)[i]) << " "; \
+	} \
+	std::cout << std::endl; \
+	assert(code == 0); \
+} \
+free(result); \
+cudaFree(d_code); \
+cudaFree(d_result); \
+cudaFree(d_size);
+
+void Base256uMathTests::CUDA::byte_shift_left::ideal_case() {
+	byte_shift_test_macro(byte_shift_left_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::big_ideal_case() {
+	byte_shift_test_macro(byte_shift_left_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::src_n_less_than_by() {
+	byte_shift_test_macro(byte_shift_left_src_n_less_than_by_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::src_n_greater_than_dst_n() {
+	byte_shift_test_macro(byte_shift_left_src_n_greater_than_dst_n_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::src_n_less_than_dst_n() {
+	byte_shift_test_macro(byte_shift_left_src_n_less_than_dst_n_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::src_n_zero() {
+	byte_shift_test_macro(byte_shift_left_src_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::dst_n_zero() {
+	byte_shift_test_macro(byte_shift_left_dst_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::by_is_zero() {
+	byte_shift_test_macro(byte_shift_left_by_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::in_place_ideal_case() {
+	byte_shift_test_macro(byte_shift_left_in_place_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::in_place_big_ideal_case() {
+	byte_shift_test_macro(byte_shift_left_in_place_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::in_place_src_n_less_than_by() {
+	byte_shift_test_macro(byte_shift_left_in_place_src_n_less_than_by_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::in_place_src_n_zero() {
+	byte_shift_test_macro(byte_shift_left_in_place_src_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_left::in_place_by_is_zero() {
+	byte_shift_test_macro(byte_shift_left_in_place_by_is_zero_kernel);
+}
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::byte_shift_right::test() {}
+void Base256uMathTests::CUDA::byte_shift_right::test() {
+	ideal_case();
+	big_ideal_case();
+	src_n_less_than_by();
+	src_n_greater_than_dst_n();
+	src_n_less_than_dst_n();
+	src_n_zero();
+	dst_n_zero();
+	by_is_zero();
+
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_src_n_less_than_by();
+	in_place_src_n_zero();
+	in_place_by_is_zero();
+}
+
+__global__
+void byte_shift_right_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 1305258424;
+	std::size_t by = 5;
+	std::size_t dst;
+	std::size_t answer = src >> (by * 8);
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 223, 192, 7, 188, 111, 229, 33, 55, 8 };
+	std::size_t by = 3;
+	unsigned char dst[9];
+	auto return_code = Base256uMath::byte_shift_right(src, sizeof(src), by, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	unsigned char answer[] = { 188, 111, 229, 33, 55, 8, 0, 0, 0 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_right_src_n_less_than_by_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned short src = 1337;
+	std::size_t by = sizeof(src) + 1;
+	unsigned short dst = 394021884;
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 0) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_src_n_greater_than_dst_n_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 39158;
+	std::size_t by = 1;
+	unsigned short dst;
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), by, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	decltype(dst) answer = src >> (by * 8);
+	if (dst != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_src_n_less_than_dst_n_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 244, 184, 73, 236, 228, 182, 41, 107, 81 };
+	unsigned char dst[] = { 159, 188, 20, 222, 209, 85, 173, 112, 72, 73, 40, 123 };
+	std::size_t by = 3;
+	auto return_code = Base256uMath::byte_shift_right(src, sizeof(src), by, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	unsigned char answer[] = { 236, 228, 182, 41, 107, 81, 0, 0, 0 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_right_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto return_code = Base256uMath::byte_shift_right(src, 0, 3, dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_right_dst_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto return_code = Base256uMath::byte_shift_right(src, sizeof(src), 3, dst, 0);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != i + 10) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = sizeof(dst) + 1;
+	}
+}
+__global__
+void byte_shift_right_by_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 1334;
+	unsigned int dst = 39301;
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), 0, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1334) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_in_place_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 258424;
+	std::size_t by = 5;
+	std::size_t answer = src >> (by * 8);
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_in_place_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 223, 192, 7, 188, 111, 229, 33, 55, 8 };
+	std::size_t by = 3;
+	auto return_code = Base256uMath::byte_shift_right(src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	unsigned char answer[] = { 188, 111, 229, 33, 55, 8, 0, 0, 0 };
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+__global__
+void byte_shift_right_in_place_src_n_less_than_by_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned short src = 1337;
+	std::size_t by = sizeof(src) + 1;
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), by);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != 0) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void byte_shift_right_in_place_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	auto return_code = Base256uMath::byte_shift_right(src, 0, 3);
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != i) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+__global__
+void byte_shift_right_in_place_by_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int src = 133804;
+	auto return_code = Base256uMath::byte_shift_right(&src, sizeof(src), 0);
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != 133804) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+
+void Base256uMathTests::CUDA::byte_shift_right::ideal_case() {
+	byte_shift_test_macro(byte_shift_right_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::big_ideal_case() {
+	byte_shift_test_macro(byte_shift_right_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::src_n_less_than_by() {
+	byte_shift_test_macro(byte_shift_right_src_n_less_than_by_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::src_n_greater_than_dst_n() {
+	byte_shift_test_macro(byte_shift_right_src_n_greater_than_dst_n_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::src_n_less_than_dst_n() {
+	byte_shift_test_macro(byte_shift_right_src_n_less_than_dst_n_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::src_n_zero() {
+	byte_shift_test_macro(byte_shift_right_src_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::dst_n_zero() {
+	byte_shift_test_macro(byte_shift_right_dst_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::by_is_zero() {
+	byte_shift_test_macro(byte_shift_right_by_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::in_place_ideal_case() {
+	byte_shift_test_macro(byte_shift_right_in_place_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::in_place_big_ideal_case() {
+	byte_shift_test_macro(byte_shift_right_in_place_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::in_place_src_n_less_than_by() {
+	byte_shift_test_macro(byte_shift_right_in_place_src_n_less_than_by_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::in_place_src_n_zero() {
+	byte_shift_test_macro(byte_shift_right_in_place_src_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::byte_shift_right::in_place_by_is_zero() {
+	byte_shift_test_macro(byte_shift_right_in_place_by_is_zero_kernel);
+}
 
 // ===================================================================================
 

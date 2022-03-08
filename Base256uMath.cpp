@@ -1438,7 +1438,7 @@ int Base256uMath::log256(
 #if BASE256UMATH_FAST_OPERATORS
 void bit_shift_left_fast(
 	void* const dst,
-	std::size_t dst_n,
+	const std::size_t& dst_n,
 	unsigned char by_bits
 ) {
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst) + dst_n;
@@ -1676,7 +1676,7 @@ int Base256uMath::bit_shift_left(
 #if BASE256UMATH_FAST_OPERATORS
 void bit_shift_right_fast(
 	void* const dst,
-	std::size_t dst_n,
+	const std::size_t& dst_n,
 	unsigned char by_bits
 ) {
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
@@ -2040,13 +2040,33 @@ int Base256uMath::byte_shift_left(
 
 	// src_n > by and dst_n > by is true from this point on
 
-	memcpy(reinterpret_cast<unsigned char*>(dst) + by * bool(dst_n), src, MIN(src_n, dst_n) - by * bool(dst_n));
+	memcpy(
+		reinterpret_cast<unsigned char*>(dst) + by * bool(dst_n), 
+		src, 
+		MIN(src_n, dst_n) - by * bool(dst_n)
+	);
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (src_n > dst_n + by)
 		return ErrorCodes::TRUNCATED;
 #endif
 	return ErrorCodes::OK;
+}
+
+__host__ __device__
+void _memmove(void* dst, void* src, std::size_t n) {
+	if (!n)
+		return;
+	if (src > dst) {
+		for (std::size_t i = 0; i < n; i++) {
+			reinterpret_cast<unsigned char*>(dst)[i] = reinterpret_cast<unsigned char*>(src)[i];
+		}
+	}
+	else if (src < dst) {
+		for (std::size_t i = n - 1; i < n; i--) {
+			reinterpret_cast<unsigned char*>(dst)[i] = reinterpret_cast<unsigned char*>(src)[i];
+		}
+	}
 }
 
 int Base256uMath::byte_shift_left(
@@ -2061,7 +2081,11 @@ int Base256uMath::byte_shift_left(
 
 	// src_n > by is true from this point on
 
+#ifndef __NVCC__
 	memmove(reinterpret_cast<unsigned char*>(src) + by, src, src_n - by);
+#else
+	_memmove(reinterpret_cast<unsigned char*>(src) + by, src, src_n - by);
+#endif
 	memset(reinterpret_cast<unsigned char*>(src), 0, by);
 
 	return ErrorCodes::OK;
@@ -2099,7 +2123,11 @@ int Base256uMath::byte_shift_right(
 
 	// src_n > by is true from this point on
 
+#ifndef __NVCC__
 	memmove(src, reinterpret_cast<unsigned char*>(src) + by, src_n - by);
+#else
+	_memmove(src, reinterpret_cast<unsigned char*>(src) + by, src_n - by);
+#endif
 	memset(reinterpret_cast<unsigned char*>(src) + (src_n - by), 0, by);
 
 	return ErrorCodes::OK;

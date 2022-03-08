@@ -916,7 +916,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : your dst was too small. Not fatal.
 	*/
-	int byte_shift_left(
+	__host__ __device__ int byte_shift_left(
 		const void* const src,
 		std::size_t src_n,
 		std::size_t by,
@@ -935,7 +935,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int byte_shift_left(
+	__host__ __device__ int byte_shift_left(
 		void* const src,
 		std::size_t src_n,
 		std::size_t by
@@ -954,7 +954,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : your dst was too small. Not fatal.
 	*/
-	int byte_shift_right(
+__host__ __device__ int byte_shift_right(
 		const void* const src,
 		std::size_t src_n,
 		std::size_t by,
@@ -973,7 +973,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int byte_shift_right(
+__host__ __device__ int byte_shift_right(
 		void* const src,
 		std::size_t src_n,
 		std::size_t by

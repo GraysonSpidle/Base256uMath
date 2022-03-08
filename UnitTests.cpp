@@ -3343,7 +3343,7 @@ Base256uMathTests::byte_shift_left::byte_shift_left() {
 	in_place_by_is_zero();
 }
 void Base256uMathTests::byte_shift_left::ideal_case() {
-	std::size_t src = 13056761402769258424;
+	std::size_t src = 1305258424;
 	std::size_t by = 5;
 	std::size_t dst;
 	std::size_t answer = src << (by * 8);
@@ -3427,14 +3427,14 @@ void Base256uMathTests::byte_shift_left::dst_n_zero() {
 void Base256uMathTests::byte_shift_left::by_is_zero() {
 	// if by is zero, then it effectively copies src into dst.
 
-	unsigned int src = 133804;
-	unsigned int dst = 3939101;
+	unsigned int src = 1334;
+	unsigned int dst = 39301;
 	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), 0, &dst, sizeof(dst));
-	assert(dst == 133804);
+	assert(dst == 1334);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::byte_shift_left::in_place_ideal_case() {
-	std::size_t src = 13056761402769258424;
+	std::size_t src = 258424;
 	std::size_t by = 5;
 	decltype(src) answer = src << by * 8;
 	assert(sizeof(src) > by && by > 0);
