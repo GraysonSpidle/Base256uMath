@@ -2369,7 +2369,7 @@ void Base256uMathTests::bitwise_and::big_ideal_case() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::left_bigger() {
-	unsigned int left = 3477483862;
+	unsigned int left = 3477483;
 	unsigned short right = 16058;
 	unsigned int dst;
 	assert(sizeof(left) > sizeof(right) && sizeof(left) == sizeof(dst));
@@ -2379,7 +2379,7 @@ void Base256uMathTests::bitwise_and::left_bigger() {
 }
 void Base256uMathTests::bitwise_and::left_smaller() {
 	unsigned short left = 20968;
-	unsigned int right = 2267385081;
+	unsigned int right = 226081;
 	unsigned int dst;
 	assert(sizeof(left) < sizeof(right) && sizeof(right) == sizeof(dst));
 	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
@@ -2414,8 +2414,8 @@ void Base256uMathTests::bitwise_and::dst_too_small() {
 	// if dst is too small to accomodate, then the results will be truncated and
 	// the appropriate code will be returned
 
-	std::size_t left = 6113397841731107471;
-	unsigned int right = 1868241834;
+	std::size_t left = 61107471;
+	unsigned int right = 186824;
 	unsigned short dst;
 	assert(sizeof(left) > sizeof(dst) || sizeof(right) > sizeof(dst));
 	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
@@ -2488,7 +2488,7 @@ void Base256uMathTests::bitwise_and::in_place_big_ideal_case() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::in_place_left_bigger() {
-	unsigned int left = 3477483862;
+	unsigned int left = 3477482;
 	unsigned short right = 16058;
 	decltype(left) answer = left & right;
 	assert(sizeof(left) > sizeof(right));
@@ -2498,7 +2498,7 @@ void Base256uMathTests::bitwise_and::in_place_left_bigger() {
 }
 void Base256uMathTests::bitwise_and::in_place_left_smaller() {
 	unsigned short left = 20968;
-	unsigned int right = 2267385081;
+	unsigned int right = 22673;
 	decltype(left) answer = left & right;
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right));
@@ -2528,7 +2528,7 @@ void Base256uMathTests::bitwise_and::in_place_big_left_smaller() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::in_place_left_n_zero() {
-	// if left_n is zero, then nothing happens but returns a truncated error code
+	// if left_n is zero, then nothing happens
 
 	std::size_t left = 2912879481;
 	unsigned int right = -1;
@@ -2637,8 +2637,8 @@ void Base256uMathTests::bitwise_or::dst_too_small() {
 	// if dst is too small to accomodate, then the results will be truncated and
 	// the appropriate code will be returned
 
-	std::size_t left = 6113397841731107471;
-	unsigned int right = 1868241834;
+	std::size_t left = 61133978;
+	unsigned int right = 11834;
 	unsigned short dst;
 	assert(sizeof(left) > sizeof(dst) || sizeof(right) > sizeof(dst));
 	auto code = Base256uMath::bitwise_or(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
@@ -2672,8 +2672,8 @@ void Base256uMathTests::bitwise_or::right_n_zero() {
 	// if right_n is zero, then it is treated as all zeros
 
 	unsigned int left = -1;
-	std::size_t right = 2912879481;
-	unsigned int dst = 5978137491;
+	std::size_t right = 291287941;
+	unsigned int dst = -1;
 	assert(sizeof(left) == sizeof(dst));
 	auto code = Base256uMath::bitwise_or(&left, sizeof(left), &right, 0, &dst, sizeof(dst));
 	assert(dst == left);
@@ -2682,8 +2682,8 @@ void Base256uMathTests::bitwise_or::right_n_zero() {
 void Base256uMathTests::bitwise_or::dst_n_zero() {
 	// if dst_n is zero, then nothing happens but returns a truncated error code
 
-	std::size_t left = 2739824923;
-	std::size_t right = 248020302;
+	std::size_t left = 273983;
+	std::size_t right = 24885;
 	unsigned char dst = 223;
 	auto code = Base256uMath::bitwise_or(&left, sizeof(left), &right, sizeof(right), &dst, 0);
 	assert(dst == 223);
@@ -2728,33 +2728,33 @@ void Base256uMathTests::bitwise_or::in_place_left_smaller() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_or::in_place_big_left_bigger() {
-	unsigned char left[] = { 177, 191, 253, 203, 209, 95, 131, 49, 194 };
-	unsigned char right[] = { 97, 78, 90, 246, 21, 127, 59, 186 };
+	unsigned char left[] = { 53, 138, 217, 66, 48, 69, 213, 139, 91, 163, 230, 8 };
+	unsigned char right[] = { 16, 126, 35, 76, 137, 248, 62, 10, 11 };
 	assert(sizeof(left) > sizeof(right));
 	auto code = Base256uMath::bitwise_or(left, sizeof(left), right, sizeof(right));
-	unsigned char answer[] = { 241, 255, 255, 255, 213, 127, 187, 187, 194 };
+	unsigned char answer[] = { 53, 254, 251, 78, 185, 253, 255, 139, 91, 163, 230, 8 };
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_or::in_place_big_left_smaller() {
-	unsigned char left[] = { 177, 191, 253, 203, 209, 95, 131, 49 };
-	unsigned char right[] = { 97, 78, 90, 246, 21, 127, 59, 186, 23 };
+	unsigned char left[] = { 191, 126, 201, 200, 181, 4, 177, 127, 163 };
+	unsigned char right[] = { 145, 53, 22, 29, 169, 149, 201, 111, 97, 66, 21, 27 };
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::bitwise_or(left, sizeof(left), right, sizeof(right));
-	unsigned char answer[] = { 241, 255, 255, 255, 213, 127, 187, 187, 215 };
+	unsigned char answer[] = { 191, 127, 223, 221, 189, 149, 249, 127, 227, 66, 21, 27 };
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_or::in_place_left_n_zero() {
-	// if left_n is zero, then nothing happens but returns a truncated error code
+	// if left_n is zero, then nothing happens
 
-	std::size_t left = 2912879481;
+	std::size_t left = 29128481;
 	unsigned int right = -1;
-	decltype(left) answer = 2912879481;
+	decltype(left) answer = 29128481;
 	auto code = Base256uMath::bitwise_or(&left, 0, &right, sizeof(right));
 	assert(left == answer);
 	assert(code == Base256uMath::ErrorCodes::OK);
@@ -2950,33 +2950,33 @@ void Base256uMathTests::bitwise_xor::in_place_left_smaller() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_xor::in_place_big_left_bigger() {
-	unsigned char left[] = { 177, 191, 253, 203, 209, 95, 131, 49, 194 };
-	unsigned char right[] = { 97, 78, 90, 246, 21, 127, 59, 186 };
+	unsigned char left[] = { 53, 138, 217, 66, 48, 69, 213, 139, 91, 163, 230, 8 };
+	unsigned char right[] = { 16, 126, 35, 76, 137, 248, 62, 10, 11 };
 	assert(sizeof(left) > sizeof(right));
 	auto code = Base256uMath::bitwise_xor(left, sizeof(left), right, sizeof(right));
-	unsigned char answer[] = { 208, 241, 167, 61, 196, 32, 184, 139, 194 };
+	unsigned char answer[] = { 37, 244, 250, 14, 185, 189, 235, 129, 80, 163, 230, 8 };
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_xor::in_place_big_left_smaller() {
-	unsigned char left[] = { 177, 191, 253, 203, 209, 95, 131, 49 };
-	unsigned char right[] = { 97, 78, 90, 246, 21, 127, 59, 186, 23 };
+	unsigned char left[] = { 191, 126, 201, 200, 181, 4, 177, 127, 163 };
+	unsigned char right[] = { 145, 53, 22, 29, 169, 149, 201, 111, 97, 66, 21, 27 };
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::bitwise_xor(left, sizeof(left), right, sizeof(right));
-	unsigned char answer[] = { 208, 241, 167, 61, 196, 32, 184, 139, 213 };
+	unsigned char answer[] = { 46, 75, 223, 213, 28, 145, 120, 16, 194, 66, 21, 27 };
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_xor::in_place_left_n_zero() {
-	// if left_n is zero, then nothing happens but returns a truncated error code
+	// if left_n is zero, then nothing happens
 
-	std::size_t left = 2912879481;
+	std::size_t left = 29128481;
 	unsigned int right = -1;
-	decltype(left) answer = 2912879481;
+	decltype(left) answer = 29128481;
 	auto code = Base256uMath::bitwise_xor(&left, 0, &right, sizeof(right));
 	assert(left == answer);
 	assert(code == Base256uMath::ErrorCodes::OK);
@@ -2985,7 +2985,7 @@ void Base256uMathTests::bitwise_xor::in_place_right_n_zero() {
 	// if right_n is zero, then it is treated as all zeros
 
 	unsigned int left = -1;
-	std::size_t right = 2912879481;
+	std::size_t right = 2919481;
 	decltype(left) answer = -1;
 	auto code = Base256uMath::bitwise_xor(&left, sizeof(left), &right, 0);
 	assert(left == answer);
