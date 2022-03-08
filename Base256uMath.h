@@ -655,7 +655,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : if dst_n < MIN(left_n, right_n). Not fatal.
 	*/
-	int bitwise_and(
+	__host__ __device__ int bitwise_and(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -677,7 +677,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bitwise_and(
+	__host__ __device__ int bitwise_and(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -699,7 +699,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : if dst_n < MIN(left_n, right_n). Not fatal.
 	*/
-	int bitwise_or(
+	__host__ __device__ int bitwise_or(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -721,7 +721,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bitwise_or(
+	__host__ __device__ int bitwise_or(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -743,7 +743,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : if dst_n < MIN(left_n, right_n). Not fatal.
 	*/
-	int bitwise_xor(
+	__host__ __device__ int bitwise_xor(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -765,7 +765,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bitwise_xor(
+	__host__ __device__ int bitwise_xor(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
