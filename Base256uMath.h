@@ -780,7 +780,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bitwise_not(
+	__host__ __device__ int bitwise_not(
 		void* const src,
 		std::size_t src_n
 	);

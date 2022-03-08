@@ -2292,7 +2292,110 @@ void Base256uMathTests::CUDA::bitwise_xor::in_place_right_n_zero() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::bitwise_not::test() {}
+void Base256uMathTests::CUDA::bitwise_not::test() {
+	ideal_case();
+	big_ideal_case();
+	src_n_zero();
+}
+
+__global__
+void bitwise_not_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 2493050980;
+	unsigned int answer = ~src;
+	auto return_code = Base256uMath::bitwise_not(&src, sizeof(src));
+	memset(output, 0, *size);
+	memcpy(output, &src, sizeof(src));
+	if (src != answer) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void bitwise_not_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 180, 127, 35, 146, 158, 174, 69, 249, 147 };
+	auto return_code = Base256uMath::bitwise_not(src, sizeof(src));
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	unsigned char answer[] = { 75, 128, 220, 109, 97, 81, 186, 6, 108 };
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+__global__
+void bitwise_not_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	auto return_code = Base256uMath::bitwise_not(src, 0);
+	memset(output, 0, *size);
+	memcpy(output, src, sizeof(src));
+	for (unsigned char i = 0; i < sizeof(src); i++) {
+		if (src[i] != i) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(src) + 1;
+	}
+}
+
+#define bitwise_not_test_macro(kernel_name) \
+int code = -1; \
+int* d_code; \
+auto err = cudaMalloc(&d_code, sizeof(int)); \
+cudaMalloc_check_macro(err); \
+std::size_t size = 15; \
+void* result = malloc(size); \
+if (!result) { \
+	std::cout << "couldn't allocate enough memory on the host" << std::endl; \
+	assert(result != nullptr); \
+} \
+void* d_result; \
+err = cudaMalloc(&d_result, size); \
+cudaMalloc_check_macro(err); \
+std::size_t* d_size; \
+err = cudaMalloc(&d_size, sizeof(std::size_t)); \
+cudaMalloc_check_macro(err); \
+err = cudaMemcpy(d_size, &size, sizeof(std::size_t), cudaMemcpyHostToDevice); \
+cudaMemcpy_check_macro(err); \
+KERNEL_CALL3(kernel_name, d_code, d_result, d_size); \
+err = cudaMemcpy(result, d_result, size, cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+if (code != 0) { \
+	std::cout << "code: " << std::to_string(code) << std::endl; \
+	std::cout << "result: "; \
+	for (std::size_t i = 0; i < size; i++) { \
+		std::cout << std::to_string(reinterpret_cast<unsigned char*>(result)[i]) << " "; \
+	} \
+	std::cout << std::endl; \
+	assert(code == 0); \
+} \
+free(result); \
+cudaFree(d_code); \
+cudaFree(d_size); \
+cudaFree(d_result);
+
+void Base256uMathTests::CUDA::bitwise_not::ideal_case() {
+	bitwise_not_test_macro(bitwise_not_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::bitwise_not::big_ideal_case() {
+	bitwise_not_test_macro(bitwise_not_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::bitwise_not::src_n_zero() {
+	bitwise_not_test_macro(bitwise_not_src_n_zero_kernel);
+}
 
 // ===================================================================================
 
