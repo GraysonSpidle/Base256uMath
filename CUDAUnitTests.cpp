@@ -3552,7 +3552,85 @@ void Base256uMathTests::CUDA::bit_shift_right::in_place_by_n_zero() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::increment::test() {}
+void Base256uMathTests::CUDA::increment::test() {
+	ideal_case();
+	big_ideal_case();
+	overflow();
+	big_overflow();
+}
+
+__global__
+void increment_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int num = 14703;
+	auto return_code = Base256uMath::increment(&num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	if (num != 14704) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void increment_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	unsigned char num[] = { 72, 202, 187, 220, 23, 141, 160, 38, 41 };
+	auto return_code = Base256uMath::increment(num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	unsigned char answer[] = { 73, 202, 187, 220, 23, 141, 160, 38, 41 };
+	for (unsigned char i = 0; i < sizeof(num); i++) {
+		if (num[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(num) + 1;
+	}
+}
+__global__
+void increment_overflow_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int num = -1;
+	auto return_code = Base256uMath::increment(&num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	if (num != 0) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::FLOW) {
+		*code = 2;
+	}
+}
+__global__
+void increment_big_overflow_kernel(int* code, void* output, std::size_t* size) {
+	unsigned char num[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255 };
+	auto return_code = Base256uMath::increment(num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	for (unsigned char i = 0; i < sizeof(num); i++) {
+		if (num[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::FLOW) {
+		*code = sizeof(num) + 1;
+	}
+}
+
+void Base256uMathTests::CUDA::increment::ideal_case() {
+	byte_shift_test_macro(increment_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::increment::big_ideal_case() {
+	byte_shift_test_macro(increment_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::increment::overflow() {
+	byte_shift_test_macro(increment_overflow_kernel);
+}
+void Base256uMathTests::CUDA::increment::big_overflow() {
+	byte_shift_test_macro(increment_big_overflow_kernel);
+}
 
 // ===================================================================================
 
