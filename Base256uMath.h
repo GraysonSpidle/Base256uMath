@@ -15,6 +15,42 @@ Targeted for the C++14 standard and big endian machines.
 #ifndef __BASE256UMATH_H__
 #define __BASE256UMATH_H__
 
+#if !defined(_BASE256UMATH_COMPILER_MSVC) && !defined(_BASE256UMATH_COMPILER_GCC) && !defined(_BASE256UMATH_COMPILER_NVCC)
+// Trying to automatically detect compiler
+#ifdef _MSC_VER
+#define _BASE256UMATH_COMPILER_MSVC
+#elif defined(__GNUC__)
+#define _BASE256UMATH_COMPILER_GCC
+#elif defined(__NVCC__)
+#define _BASE256UMATH_COMPILER_NVCC
+#else
+#error Could not automatically detect compiler
+#endif
+#endif
+
+// Automatically detecting processor architecture
+#ifndef BASE256UMATH_ARCHITECTURE
+#ifdef _BASE256UMATH_COMPILER_MSVC
+
+#if _WIN64
+#define BASE256UMATH_ARCHITECTURE 64
+#else
+#define BASE256UMATH_ARCHITECTURE 32
+#endif
+
+#elif defined(_BASE256UMATH_COMPILER_GCC) || defined(_BASE256UMATH_COMPILER_NVCC)
+
+#if defined(__x86_64__) || defined(__ppc64__)
+#define BASE256UMATH_ARCHITECTURE 64
+#else
+#define BASE256UMATH_ARCHITECTURE 32
+#endif
+
+#else
+#error Could not automatically detect processor architecture
+#endif
+#endif
+
 #ifndef __NVCC__
 #include <cstdlib> // std::size_t
 // nvcc defines this macro and is here for cross compatibility for other compilers
@@ -22,6 +58,12 @@ Targeted for the C++14 standard and big endian machines.
 // nvcc defines this macro and is here for cross compatibility for other compilers
 #define __device__
 #endif
+
+#ifndef BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+#define BASE256UMATH_SUPPRESS_TRUNCATED_CODE 0
+#endif
+
+//#define BASE256UMATH_FAST_OPERATORS
 
 /* 
 Namespace that houses functions to satisfy most operators that primitive numbers have.
@@ -47,9 +89,7 @@ namespace Base256uMath {
 		DIVIDE_BY_ZERO = -1, // Division by zero
 		OK = 0, // Nothing went wrong
 		FLOW = 1, // Overflow/Underflow warning
-#if !defined(BASE256UMATH_SUPPRESS_TRUNCATED_CODE) || !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 		TRUNCATED = 2 // Output data was truncated due to its size not being adequate enough to accomodate
-#endif
 	};
 
 	/* Essentially, this is the opposite of the bool() operator.
@@ -103,7 +143,7 @@ namespace Base256uMath {
 	Unlike memcmp, you can rely on the return values being 1, 0, or -1.
 	So it is safe to use in a switch-case block.
 	*/
-	int compare(
+	__host__ __device__ int compare(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -176,7 +216,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* FLOW : integer overflow warning. Not fatal.
 	*/
-	int increment(
+	__host__ __device__ int increment(
 		void* const block,
 		std::size_t n
 	);
@@ -190,7 +230,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* FLOW : integer underflow warning. Not fatal.
 	*/
-	int decrement(
+	__host__ __device__ int decrement(
 		void* const block,
 		std::size_t n
 	);
@@ -800,7 +840,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : your dst was too small. Not fatal.
 	*/
-	int bit_shift_left(
+	__host__ __device__ int bit_shift_left(
 		const void* const src,
 		std::size_t src_n,
 		const void* const by,
@@ -821,7 +861,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bit_shift_left(
+	__host__ __device__ int bit_shift_left(
 		void* const src,
 		std::size_t src_n,
 		const void* const by,
@@ -829,7 +869,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int bit_shift_left(
+	__host__ __device__ int bit_shift_left(
 		const void* const src,
 		std::size_t src_n,
 		std::size_t by,
@@ -838,7 +878,7 @@ namespace Base256uMath {
 	);
 
 	// in-place convenience function
-	int bit_shift_left(
+	__host__ __device__ int bit_shift_left(
 		void* const src,
 		std::size_t src_n,
 		std::size_t by
@@ -859,7 +899,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : your dst was too small. Not fatal.
 	*/
-	int bit_shift_right(
+	__host__ __device__ int bit_shift_right(
 		const void* const src,
 		std::size_t src_n,
 		const void* const by,
@@ -869,7 +909,7 @@ namespace Base256uMath {
 	);
 	
 	// convenience function
-	int bit_shift_right(
+	__host__ __device__ int bit_shift_right(
 		const void* const src,
 		std::size_t src_n,
 		std::size_t by,
@@ -889,7 +929,7 @@ namespace Base256uMath {
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
 	*/
-	int bit_shift_right(
+	__host__ __device__ int bit_shift_right(
 		void* const src,
 		std::size_t src_n,
 		const void* const by,
@@ -897,7 +937,7 @@ namespace Base256uMath {
 	);
 
 	// in-place convenience function
-	int bit_shift_right(
+	__host__ __device__ int bit_shift_right(
 		void* const src,
 		std::size_t src_n,
 		std::size_t by

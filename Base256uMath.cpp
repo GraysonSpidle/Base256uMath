@@ -5,21 +5,8 @@ Function definitions of all the declared functions in Base256uMath.h
 Author: Grayson Spidle
 */
 
-#if !defined(_BASE256UMATH_COMPILER_MSVC) && !defined(_BASE256UMATH_COMPILER_GCC) && !defined(_BASE256UMATH_COMPILER_NVCC)
-// Trying to automatically detect compiler
-#ifdef _MSC_VER
-#define _BASE256UMATH_COMPILER_MSVC
-#elif defined(__GNUC__)
-#define _BASE256UMATH_COMPILER_GCC
-#elif defined(__NVCC__)
-#define _BASE256UMATH_COMPILER_NVCC
-#else
-#error Could not automatically detect compiler
-#endif
-#endif
-
 #include "Base256uMath.h"
-#ifndef _BASE256UMATH_COMPILER_NVCC
+#ifndef __NVCC__
 #include <cstring> // memset
 #endif // nvcc has memset natively
 
@@ -29,37 +16,6 @@ Author: Grayson Spidle
 
 #ifndef MAX(a,b)
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
-#endif
-
-#ifndef BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-#define BASE256UMATH_SUPPRESS_TRUNCATED_CODE 0
-#endif
-
-#ifndef BASE256UMATH_FAST_OPERATORS
-#define BASE256UMATH_FAST_OPERATORS 1
-#endif // BASE256UMATH_FAST_OPERATORS
-
-// Automatically detecting processor architecture
-#ifndef BASE256UMATH_ARCHITECTURE
-#ifdef _BASE256UMATH_COMPILER_MSVC
-
-#if _WIN64
-#define BASE256UMATH_ARCHITECTURE 64
-#else
-#define BASE256UMATH_ARCHITECTURE 32
-#endif
-
-#elif defined(_BASE256UMATH_COMPILER_GCC) || defined(_BASE256UMATH_COMPILER_NVCC)
-
-#if defined(__x86_64__) || defined(__ppc64__)
-#define BASE256UMATH_ARCHITECTURE 64
-#else
-#define BASE256UMATH_ARCHITECTURE 32
-#endif
-
-#else
-#error Could not automatically detect processor architecture
-#endif
 #endif
 
 // Setting up typedefs
@@ -74,10 +30,55 @@ typedef unsigned long long uint64;
 
 // ==============================================================================================
 
+__host__ __device__
+inline bool is_zero_fast(
+	const void* const src,
+	const std::size_t& src_n
+) {
+	auto src_ptr = reinterpret_cast<const unsigned char*>(src);
+
+	if (src_n / (BASE256UMATH_ARCHITECTURE / 8)) {
+		for (std::size_t i = 0; i < src_n / (BASE256UMATH_ARCHITECTURE / 8) - 1; i++) {
+			if (*reinterpret_cast<const std::size_t*>(src_ptr)) {
+				return false;
+			}
+			src_ptr += sizeof(std::size_t);
+		}
+	}
+#if BASE256UMATH_ARCHITECTURE >= 64
+	if (src_n & 0b1000) {
+		if (*reinterpret_cast<const uint64*>(src_ptr)) {
+			return false;
+		}
+		src_ptr += sizeof(uint64);
+	}
+#endif
+	if (src_n & 0b100) {
+		if (*reinterpret_cast<const uint32*>(src_ptr)) {
+			return false;
+		}
+		src_ptr += sizeof(uint32);
+	}
+	if (src_n & 0b10) {
+		if (*reinterpret_cast<const uint16*>(src_ptr)) {
+			return false;
+		}
+		src_ptr += sizeof(uint16);
+	}
+	if (src_n & 0b1) {
+		if (*reinterpret_cast<const uint8*>(src_ptr)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+__host__ __device__
 bool Base256uMath::is_zero(
 	const void* const src,
 	std::size_t src_n
 ) {
+	//return is_zero_fast(src, src_n);
 	const unsigned char* ptr = reinterpret_cast<const unsigned char*>(src) + src_n,
 		* end = reinterpret_cast<const unsigned char*>(src) - 1;
 	while( --ptr != end) {
@@ -141,14 +142,12 @@ void* const Base256uMath::max(
 	void* const right,
 	std::size_t right_n
 ) {
-	return const_cast<void* const>(
-		Base256uMath::max(
-			const_cast<const void* const>(left),
-			left_n,
-			const_cast<const void* const>(right),
-			right_n
-		)
-	);
+	int cmp = compare(left, left_n, right, right_n);
+	if (cmp > 0)
+		return left;
+	else if (cmp < 0)
+		return right;
+	return left;
 }
 
 const void* const Base256uMath::min(
@@ -171,18 +170,17 @@ void* const Base256uMath::min(
 	void* const right,
 	std::size_t right_n
 ) {
-	return const_cast<void* const>(
-		Base256uMath::min(
-			const_cast<const void* const>(left),
-			left_n,
-			const_cast<const void* const>(right),
-			right_n
-		)
-	);
+	int cmp = compare(left, left_n, right, right_n);
+	if (cmp < 0)
+		return left;
+	else if (cmp > 0)
+		return right;
+	return left;
 }
 
-#if BASE256UMATH_FAST_OPERATORS
-inline int increment_fast(void* const block, std::size_t n) {
+#ifdef BASE256UMATH_FAST_OPERATORS
+__host__ __device__
+inline int increment_fast(void* const block, const std::size_t& n) {
 	auto dst_ptr = reinterpret_cast<unsigned char*>(block);
 
 	if (n / (BASE256UMATH_ARCHITECTURE / 8)) {
@@ -198,42 +196,37 @@ inline int increment_fast(void* const block, std::size_t n) {
 
 	// If we get here, then it is assumed we still need to carry
 
+	bool b = false;
+
 #if BASE256UMATH_ARCHITECTURE >= 64
-	if (n & 0b1000) { // 64 bit
-		*reinterpret_cast<uint64*>(dst_ptr) += 1;
-
-		if (*reinterpret_cast<uint64*>(dst_ptr))
-			return Base256uMath::ErrorCodes::OK;
-
-		dst_ptr += sizeof(uint64);
-	}
+	// 64 bit
+	b = n & 0b1000;
+	*reinterpret_cast<uint64*>(dst_ptr) += b;
+	if (b * *reinterpret_cast<uint64*>(dst_ptr))
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint64) * b;
 #endif
 
-	if (n & 0b100) { // 32 bit
-		*reinterpret_cast<uint32*>(dst_ptr) += 1;
+	// 32 bit
+	b = n & 0b100;
+	*reinterpret_cast<uint32*>(dst_ptr) += b;
+	if (b * *reinterpret_cast<uint32*>(dst_ptr))
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint32) * b;
 
-		if (*reinterpret_cast<uint32*>(dst_ptr))
-			return Base256uMath::ErrorCodes::OK;
+	// 16 bit
+	b = n & 0b10;
+	*reinterpret_cast<uint16*>(dst_ptr) += b;
+	if (b * *reinterpret_cast<uint16*>(dst_ptr))
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint16) * b;
 
-		dst_ptr += sizeof(uint32);
-	}
+	// 8 bit
+	b = n & 0b1;
+	*reinterpret_cast<uint8*>(dst_ptr) += b;
+	if (b * *reinterpret_cast<uint8*>(dst_ptr))
+		return Base256uMath::ErrorCodes::OK;
 
-	if (n & 0b10) { // 16 bit
-		*reinterpret_cast<uint16*>(dst_ptr) += 1;
-
-		if (*reinterpret_cast<uint16*>(dst_ptr))
-			return Base256uMath::ErrorCodes::OK;
-
-		dst_ptr += sizeof(uint16);
-
-	}
-
-	if (n & 0b1) { // 8 bit
-		*reinterpret_cast<unsigned char*>(dst_ptr) += 1;
-
-		if (*reinterpret_cast<unsigned char*>(dst_ptr))
-			return Base256uMath::ErrorCodes::OK;
-	}
 	return Base256uMath::ErrorCodes::FLOW;
 }
 #endif
@@ -242,7 +235,7 @@ int Base256uMath::increment(
 	void* const block,
 	std::size_t n
 ) {
-#if BASE256UMATH_FAST_OPERATORS
+#ifdef BASE256UMATH_FAST_OPERATORS
 	return increment_fast(block, n);
 #else
 	// Starting at the smallest byte.
@@ -263,8 +256,8 @@ int Base256uMath::increment(
 #endif
 }
 
-#if BASE256UMATH_FAST_OPERATORS
-inline int decrement_fast(void* const block, std::size_t n) {
+__host__ __device__
+inline int decrement_fast(void* const block, const std::size_t& n) {
 	auto dst_ptr = reinterpret_cast<unsigned char*>(block);
 
 	if (n / (BASE256UMATH_ARCHITECTURE / 8)) {
@@ -282,63 +275,54 @@ inline int decrement_fast(void* const block, std::size_t n) {
 
 	// if we get here, then it is assumed we still need to borrow
 
-#if BASE256UMATH_ARCHITECTURE >= 64
-	if (n & 0b1000) { // 64 bit
-		if (*reinterpret_cast<uint64*>(dst_ptr)) {
-			*reinterpret_cast<uint64*>(dst_ptr) -= 1;
-			return Base256uMath::ErrorCodes::OK;
-		}
-		else
-			*reinterpret_cast<uint64*>(dst_ptr) -= 1;
+	bool b = false;
+	bool b2 = false;
 
-		dst_ptr += sizeof(uint64);
-	}
+#if BASE256UMATH_ARCHITECTURE >= 64
+	// 64 bit
+	b = n & 0b1000;
+	b2 = *reinterpret_cast<uint64*>(dst_ptr);
+	*reinterpret_cast<uint64*>(dst_ptr) -= b;
+	if (b * b2)
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint64) * b;
 #endif
 
-	if (n & 0b100) { // 32 bit
-		if (*reinterpret_cast<uint32*>(dst_ptr)) {
-			*reinterpret_cast<uint32*>(dst_ptr) -= 1;
-			return Base256uMath::ErrorCodes::OK;
-		}
-		else
-			*reinterpret_cast<uint32*>(dst_ptr) -= 1;
+	// 32 bit
+	b = n & 0b100;
+	b2 = *reinterpret_cast<uint32*>(dst_ptr);
+	*reinterpret_cast<uint32*>(dst_ptr) -= b;
+	if (b * b2)
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint32) * b;
 
-		dst_ptr += sizeof(uint32);
-	}
+	// 16 bit
+	b = n & 0b10;
+	b2 = *reinterpret_cast<uint16*>(dst_ptr);
+	*reinterpret_cast<uint16*>(dst_ptr) -= b;
+	if (b * b2)
+		return Base256uMath::ErrorCodes::OK;
+	dst_ptr += sizeof(uint16) * b;
 
-	if (n & 0b10) { // 16 bit
-		if (*reinterpret_cast<uint16*>(dst_ptr)) {
-			*reinterpret_cast<uint16*>(dst_ptr) -= 1;
-			return Base256uMath::ErrorCodes::OK;
-		}
-		else
-			*reinterpret_cast<uint16*>(dst_ptr) -= 1;
+	// 8 bit
+	b = n & 0b1;
+	b2 = *reinterpret_cast<uint8*>(dst_ptr);
+	*reinterpret_cast<uint8*>(dst_ptr) -= b;
+	if (b * b2)
+		return Base256uMath::ErrorCodes::OK;
 
-		dst_ptr += sizeof(uint16);
-	}
-
-	if (n & 0b1) { // 8 bit
-		if (*reinterpret_cast<uint8*>(dst_ptr)) {
-			*reinterpret_cast<uint8*>(dst_ptr) -= 1;
-			return Base256uMath::ErrorCodes::OK;
-		}
-		else
-			*reinterpret_cast<uint8*>(dst_ptr) -= 1;
-	}
 	return Base256uMath::ErrorCodes::FLOW;
 }
-#endif
 
 int Base256uMath::decrement(
 	void* const block,
 	std::size_t n
 ) {
-#if BASE256UMATH_FAST_OPERATORS
+#ifdef BASE256UMATH_FAST_OPERATORS
 	return decrement_fast(block, n);
 #else
 	// Starting at the smallest byte.
 	// Subtract 1 from each byte until borrowing is no longer necessary.
-
 	unsigned char* page_ptr = reinterpret_cast<unsigned char*>(block);
 	unsigned char* end = page_ptr + n;
 	for (; page_ptr != end; ++page_ptr) {
@@ -354,6 +338,63 @@ int Base256uMath::decrement(
 #endif
 }
 
+__host__ __device__
+inline int bitwise_add(
+	const void* const left,
+	const std::size_t& left_n,
+	const void* const right,
+	const std::size_t& right_n,
+	void* const dst,
+	const std::size_t& dst_n
+) {
+	unsigned char* right_copy = new unsigned char[right_n];
+	if (!right_copy)
+		return Base256uMath::ErrorCodes::OOM;
+	unsigned char* carry = new unsigned char[MAX(left_n, right_n)];
+	if (!carry) {
+		delete[] right_copy;
+		return Base256uMath::ErrorCodes::OOM;
+	}
+	memcpy(right_copy, right, right_n);
+	while (!Base256uMath::is_zero(right_copy, right_n)) {
+		Base256uMath::bitwise_and(left, left_n, right_copy, right_n, carry, MAX(left_n, right_n));
+		Base256uMath::bitwise_xor(dst, dst_n, right_copy, right_n);
+		memcpy(right_copy, carry, right_n);
+		Base256uMath::bit_shift_left(right_copy, right_n, 1);
+	}
+	delete[] right_copy;
+	delete[] carry;
+	return Base256uMath::ErrorCodes::OK;
+}
+
+__host__ __device__
+inline bool binary_add(
+	const void* const right,
+	const std::size_t& right_n,
+	void* const dst,
+	const std::size_t& dst_n
+) {
+	auto l = reinterpret_cast<unsigned char*>(dst);
+	auto l_end = reinterpret_cast<unsigned char*>(dst) + dst_n;
+	auto r = reinterpret_cast<const unsigned char*>(right);
+	auto r_end = reinterpret_cast<const unsigned char*>(right) + right_n;
+
+	bool carry = false;
+	unsigned char buffer; // we need this to keep track of l[i] before it gets added to
+	for (; l != l_end && r != r_end; l++, r++) {
+		buffer = *l;
+		*l += *r + carry;
+		carry = *l < (MAX(buffer, *r));
+	}
+	//return increment_fast(l, dst_n - (l - reinterpret_cast<unsigned char*>(dst)));
+	for (; carry && l != l_end; l++) {
+		buffer = *l;
+		*l += 1;
+		carry = !bool(*l);
+	}
+	return carry;
+}
+
 int Base256uMath::add(
 	const void* const left,
 	std::size_t left_n,
@@ -362,29 +403,13 @@ int Base256uMath::add(
 	void* const dst,
 	std::size_t dst_n
 ) {
-	// Our implementation will be similar to binary addition,
-	// but instead we're using bytes instead of bits.
-
-	auto l = reinterpret_cast<const unsigned char*>(left);
-	auto r = reinterpret_cast<const unsigned char*>(right);
-	auto d = reinterpret_cast<unsigned char*>(dst);
-
-	bool carry = false;
-	for (std::size_t i = 0; i < dst_n; i++) {
-		d[i] =
-			l[i] * (i < left_n)
-			+ r[i] * (i < right_n) 
-			+ carry;
-
-		carry = d[i] < ( MAX(l[i] * (i < left_n), r[i] * (i < right_n)) );
-	}
-	if (carry)
-		return ErrorCodes::FLOW;
+	memset(dst, 0, dst_n);
+	memcpy(dst, left, MIN(left_n, dst_n));
+	return ErrorCodes::FLOW * binary_add(right, right_n, dst, dst_n)
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (dst_n < MAX(left_n, right_n))
-		return ErrorCodes::TRUNCATED;
+		+ ErrorCodes::TRUNCATED * (dst_n < MAX(left_n, right_n))
 #endif
-	return ErrorCodes::OK;
+	;
 }
 
 int Base256uMath::add(
@@ -394,11 +419,15 @@ int Base256uMath::add(
 	void* const dst,
 	std::size_t dst_n
 ) {
-	return add(
-		left, left_n,
-		&right, sizeof(right),
-		dst, dst_n
-	);
+	memcpy(dst, left, MIN(left_n, dst_n));
+	if (binary_add(&right, sizeof(right), dst, dst_n)) {
+		return ErrorCodes::FLOW;
+	}
+#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
+	if (dst_n < MAX(left_n, sizeof(right)))
+		return ErrorCodes::TRUNCATED;
+#endif
+	return ErrorCodes::OK;
 }
 
 int Base256uMath::add(
@@ -407,26 +436,11 @@ int Base256uMath::add(
 	const void* const right,
 	std::size_t right_n
 ) {
-	// Our implementation will be similar to binary addition,
-	// but instead we're using bytes instead of bits.
-
-	auto l = reinterpret_cast<unsigned char*>(left);
-	auto r = reinterpret_cast<const unsigned char*>(right);
-
-	bool carry = false;
-	unsigned char buffer; // we need this to keep track of l[i] before it gets added to
-	for (std::size_t i = 0; i < left_n; i++) {
-		buffer = l[i];
-		l[i] += r[i] * (i < right_n) + carry;
-		carry = l[i] < ( MAX(buffer, r[i] * (i < right_n)) );
-	}
-	if (carry)
-		return ErrorCodes::FLOW;
+	return ErrorCodes::FLOW * binary_add(right, right_n, left, left_n)
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (left_n < right_n)
-		return ErrorCodes::TRUNCATED;
+		+ ErrorCodes::TRUNCATED * (left_n < right_n)
 #endif
-	return ErrorCodes::OK;
+	;
 }
 
 int Base256uMath::add(
@@ -434,10 +448,9 @@ int Base256uMath::add(
 	std::size_t left_n, 
 	std::size_t right
 ) {
-	return add(
-		left, left_n,
-		&right, sizeof(right)
-	);
+	if (binary_add(&right, sizeof(right), left, left_n))
+		return ErrorCodes::FLOW;
+	return ErrorCodes::OK;
 }
 
 int Base256uMath::subtract(
@@ -537,6 +550,7 @@ int Base256uMath::subtract(
 	);
 }
 
+__host__ __device__
 std::size_t convert_to_size_t(const void* const src, std::size_t n) {
 	std::size_t output = 0;
 	switch (n) {
@@ -591,9 +605,10 @@ std::size_t convert_to_size_t(const void* const src, std::size_t n) {
 	return output;
 }
 
+__host__ __device__
 inline void multiply_char_and_char(
-	unsigned char left,
-	unsigned char right,
+	const unsigned char& left,
+	const unsigned char& right,
 	unsigned char* dst,
 	unsigned char* overflow
 ) {
@@ -602,32 +617,29 @@ inline void multiply_char_and_char(
 	*overflow = big >> 8;
 }
 
-int multiply_big_and_char(
+__host__ __device__
+inline void multiply_big_and_char(
 	const void* const big,
-	std::size_t big_n,
+	const std::size_t& big_n,
 	unsigned char right,
 	unsigned char* dst
 ) {
 	// dst better be of size of at least big_n + 1
 
-	if (big_n) {
-		*reinterpret_cast<unsigned char*>(dst) = 0;
-		unsigned char product;
-		for (std::size_t i = 0; i < big_n; i++) {
-			multiply_char_and_char(
-				*(reinterpret_cast<const unsigned char*>(big) + i),
-				right,
-				&product,
-				reinterpret_cast<unsigned char*>(dst) + i + 1
-			);
-			product += *(reinterpret_cast<unsigned char*>(dst) + i);
+	*reinterpret_cast<unsigned char*>(dst) = 0;
+	unsigned char product;
+	for (std::size_t i = 0; i < big_n; i++) {
+		multiply_char_and_char(
+			*(reinterpret_cast<const unsigned char*>(big) + i),
+			right,
+			&product,
+			reinterpret_cast<unsigned char*>(dst) + i + 1
+		);
+		product += *(reinterpret_cast<unsigned char*>(dst) + i);
 
-			*(reinterpret_cast<unsigned char*>(dst) + i + 1) += product < *(reinterpret_cast<unsigned char*>(dst) + i);
-			*(reinterpret_cast<unsigned char*>(dst) + i) = product;
-		}
-		return Base256uMath::ErrorCodes::OK;
+		*(reinterpret_cast<unsigned char*>(dst) + i + 1) += product < *(reinterpret_cast<unsigned char*>(dst) + i);
+		*(reinterpret_cast<unsigned char*>(dst) + i) = product;
 	}
-	return Base256uMath::ErrorCodes::TRUNCATED;
 }
 
 int Base256uMath::multiply(
@@ -661,11 +673,11 @@ int Base256uMath::multiply(
 		// since we would only have to shift by whole bytes we can save some time by just offsetting
 		// pointers and calling it a day.
 
-		Base256uMath::add(
-			reinterpret_cast<unsigned char*>(dst) + i,
-			dst_n - i,
+		binary_add(
 			product,
-			left_n + 1
+			left_n + 1,
+			reinterpret_cast<unsigned char*>(dst) + i,
+			dst_n - i
 		);
 	}
 	delete[] product;
@@ -729,7 +741,10 @@ int Base256uMath::multiply(
 // https://stackoverflow.com/questions/11376288/fast-computing-of-log2-for-64-bit-integers
 // Thank God for stack overflow
 #if BASE256UMATH_ARCHITECTURE == 64
-const int tab64[64] = {
+__host__ __device__
+int log2_64(uint64 value)
+{
+	const int tab64[64] = {
 	63,  0, 58,  1, 59, 47, 53,  2,
 	60, 39, 48, 27, 54, 33, 42,  3,
 	61, 51, 37, 40, 49, 18, 28, 20,
@@ -738,9 +753,6 @@ const int tab64[64] = {
 	50, 36, 17, 19, 29, 10, 13, 21,
 	56, 45, 25, 31, 35, 16,  9, 12,
 	44, 24, 15,  8, 23,  7,  6,  5 };
-
-int log2_64(uint64 value)
-{
 	value |= value >> 1;
 	value |= value >> 2;
 	value |= value >> 4;
@@ -750,14 +762,14 @@ int log2_64(uint64 value)
 	return tab64[((uint64)((value - (value >> 1)) * 0x07EDD5E59A4E28C2)) >> 58];
 }
 #elif BASE256UMATH_ARCHITECTURE == 32
-const int tab32[32] = {
+__host__ __device__
+int log2_32(uint32 value)
+{
+	const int tab32[32] = {
 	 0,  9,  1, 10, 13, 21,  2, 29,
 	11, 14, 16, 18, 22, 25,  3, 30,
 	 8, 12, 20, 28, 15, 17, 24,  7,
-	19, 27, 23,  6, 26,  5,  4, 31};
-
-int log2_32(uint32 value)
-{
+	19, 27, 23,  6, 26,  5,  4, 31 };
 	value |= value >> 1;
 	value |= value >> 2;
 	value |= value >> 4;
@@ -769,6 +781,7 @@ int log2_32(uint32 value)
 #error Unsupported architecture
 #endif
 
+__host__ __device__
 unsigned long sig_bit(std::size_t n) { // essentially just log2
 #if BASE256UMATH_ARCHITECTURE == 64
 	return log2_64(n);
@@ -779,6 +792,7 @@ unsigned long sig_bit(std::size_t n) { // essentially just log2
 #endif
 }
 
+__host__ __device__
 inline int binary_long_division(
 	const void* const dividend,
 	std::size_t& dividend_n,
@@ -827,8 +841,10 @@ inline int binary_long_division(
 
 	// Now here's where the dividing starts
 
+	bool b = true;
+
 	// while remainder >= divisor (not the divisor_copy)
-	while (Base256uMath::compare(remainder, remainder_n, divisor, divisor_n) >= 0) {
+	while (Base256uMath::compare(remainder, remainder_n, divisor, divisor_n) >= 0 && b) {
 		// At the beginning of each pass, we reset the divisor_copy and bit shift it again
 		memset(divisor_copy, 0, dividend_n);
 		memcpy(divisor_copy, divisor, MIN(divisor_n, dividend_n));
@@ -860,7 +876,7 @@ inline int binary_long_division(
 			// All cases eventually get here. In binary long division, you keep
 			// shifting to the right until you can no longer do so. This effectively
 			// does that.
-			Base256uMath::decrement(log2_diff, sizeof(log2_diff));
+			b = !bool(decrement_fast(log2_diff, sizeof(log2_diff)));
 			Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
 			break;
 		}
@@ -884,6 +900,7 @@ inline int binary_long_division(
 }
 
 // in-place
+__host__ __device__
 inline int binary_long_division(
 	void* const dividend,
 	std::size_t& dividend_n,
@@ -1051,8 +1068,6 @@ int Base256uMath::divide(
 #endif
 		return ErrorCodes::OK;
 	}
-
-	//memcpy(dst, dividend, dividend_n);
 	return binary_long_division(dividend, dividend_n, divisor, divisor_n, dst, dst_n, remainder, remainder_n);	
 }
 
@@ -1395,7 +1410,8 @@ int Base256uMath::log2(
 
 	auto num = sig_bit(reinterpret_cast<const unsigned char*>(src)[sig_byte]);
 
-	add(dst, dst_n, &num, sizeof(num));
+	reinterpret_cast<unsigned char*>(dst)[0] |= num;
+	//add(dst, dst_n, &num, sizeof(num));
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (Base256uMath::compare(dst, dst_n, &sig_byte, sizeof(sig_byte)) < 0)
@@ -1435,7 +1451,7 @@ int Base256uMath::log256(
 	return ErrorCodes::DIVIDE_BY_ZERO;
 }
 
-#if BASE256UMATH_FAST_OPERATORS
+__host__ __device__
 void bit_shift_left_fast(
 	void* const dst,
 	const std::size_t& dst_n,
@@ -1482,6 +1498,7 @@ void bit_shift_left_fast(
 	// - If you did everything correctly, then it should work.
 #endif
 
+	bool b;
 #if BASE256UMATH_ARCHITECTURE >= 64
 	// 64 bit
 	if (dst_n & 0b1000) { // checking divisibility 
@@ -1491,7 +1508,7 @@ void bit_shift_left_fast(
 		*(reinterpret_cast<uint64*>(dst_ptr) - 1) <<= by_bits;
 
 		buffer = *(dst_ptr - sizeof(uint64) - 1);
-		buffer &= 255 << (8 - by_bits);
+		buffer &= (255 << (8 - by_bits));
 		buffer >>= 8 - by_bits;
 
 		dst_ptr -= sizeof(uint64);
@@ -1534,7 +1551,6 @@ void bit_shift_left_fast(
 		*(dst_ptr - 1) <<= by_bits;
 	}
 }
-#endif
 
 int Base256uMath::bit_shift_left(
 	const void* const src,
@@ -1558,7 +1574,7 @@ int Base256uMath::bit_shift_left(
 	unsigned char n_bits = (*reinterpret_cast<const unsigned char*>(by) * bool(by_n)) & (unsigned char)0b111;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_left_fast(dst, dst_n, n_bits);
 #else
 		// Slower alternative, but is reliable. No fancy manipulation of pointers here.
@@ -1600,7 +1616,7 @@ int Base256uMath::bit_shift_left(
 	unsigned char n_bits = (*reinterpret_cast<const unsigned char*>(by) * bool(by_n)) & (unsigned char)0b111;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_left_fast(src, src_n, n_bits);
 #else
 		auto src_ptr = reinterpret_cast<unsigned char*>(src) + src_n;
@@ -1632,7 +1648,7 @@ int Base256uMath::bit_shift_left(
 #endif
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_left_fast(dst, dst_n, n_bits);
 #else
 		auto dst_ptr = reinterpret_cast<unsigned char*>(dst) + dst_n;
@@ -1659,7 +1675,7 @@ int Base256uMath::bit_shift_left(
 #endif
 	
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_left_fast(src, src_n, n_bits);
 #else
 		auto src_ptr = reinterpret_cast<unsigned char*>(src) + src_n;
@@ -1673,7 +1689,8 @@ int Base256uMath::bit_shift_left(
 	return code;
 }
 
-#if BASE256UMATH_FAST_OPERATORS
+
+__host__ __device__
 void bit_shift_right_fast(
 	void* const dst,
 	const std::size_t& dst_n,
@@ -1768,7 +1785,6 @@ void bit_shift_right_fast(
 	}
 
 }
-#endif
 
 int Base256uMath::bit_shift_right(
 	const void* const src,
@@ -1792,14 +1808,13 @@ int Base256uMath::bit_shift_right(
 	unsigned char n_bits = (*reinterpret_cast<const unsigned char*>(by) * bool(by_n)) & (unsigned char)0b111;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_right_fast(dst, dst_n, n_bits);
 #else
-		auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
+		auto dst_ptr = reinterpret_cast<unsigned char*>(dst) - 1;
 		auto dst_end = reinterpret_cast<unsigned char*>(dst) + dst_n;
-
 		unsigned char mask = (((unsigned char)1 << n_bits) - 1);
-		for (; dst_ptr < dst_end; dst_ptr++) {
+		while (++dst_ptr < dst_end) {
 			*dst_ptr >>= n_bits;
 			*dst_ptr |= ((*(dst_ptr + 1) * (dst_ptr + 1 < dst_end)) & mask) << (8 - n_bits);
 		}
@@ -1829,17 +1844,15 @@ int Base256uMath::bit_shift_right(
 	unsigned char n_bits = 0b111 & by;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_right_fast(dst, dst_n, n_bits);
 #else
-		auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
+		auto dst_ptr = reinterpret_cast<unsigned char*>(dst) - 1;
+		auto dst_end = reinterpret_cast<unsigned char*>(dst) + dst_n;
 		unsigned char mask = (((unsigned char)1 << n_bits) - 1);
-		while (dst_ptr - dst_n < src) {
-			*dst_ptr = *reinterpret_cast<const unsigned char*>(src) >> n_bits;
-			*dst_ptr |= ((*(reinterpret_cast<const unsigned char*>(src) + 1) 
-				* (1 + reinterpret_cast<const unsigned char*>(src) - src_n < src)) & mask) 
-				<< (8 - n_bits);
-			dst_ptr++;
+		while (++dst_ptr < dst_end) {
+			*dst_ptr >>= n_bits;
+			*dst_ptr |= ((*(dst_ptr + 1) * (dst_ptr + 1 < dst_end)) & mask) << (8 - n_bits);
 		}
 #endif
 	}
@@ -1856,7 +1869,7 @@ int Base256uMath::bit_shift_right(
 	unsigned char n_bits = by & (unsigned char)0b111;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_right_fast(src, src_n, by);
 #else
 		auto src_ptr = reinterpret_cast<unsigned char*>(src);
@@ -1891,7 +1904,7 @@ int Base256uMath::bit_shift_right(
 	unsigned char n_bits = (*reinterpret_cast<const unsigned char*>(by) * bool(by_n)) & (unsigned char)0b111;
 
 	if (n_bits) {
-#if BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 		bit_shift_right_fast(src, src_n, n_bits);
 #else
 		// Fall back to just doing byte by byte
@@ -2016,6 +2029,39 @@ int Base256uMath::bitwise_xor(
 	return ErrorCodes::OK;
 }
 
+__host__ __device__
+void bitwise_not_fast(void* src, const std::size_t& src_n) {
+	auto src_ptr = reinterpret_cast<unsigned char*>(src);
+
+	if (src_n / (BASE256UMATH_ARCHITECTURE / 8)) {
+		for (std::size_t i = 0; i < src_n / (BASE256UMATH_ARCHITECTURE / 8) - 1; i++) {
+			*reinterpret_cast<std::size_t*>(src_ptr) = ~(*reinterpret_cast<std::size_t*>(src_ptr));
+			src_ptr += sizeof(std::size_t);
+		}
+	}
+
+#if BASE256UMATH_ARCHITECTURE >= 64
+	if (src_n & 0b1000) {
+		*reinterpret_cast<uint64*>(src_ptr) = ~(*reinterpret_cast<uint64*>(src_ptr));
+		src_ptr += sizeof(uint64);
+	}
+#endif
+
+	if (src_n & 0b100) {
+		*reinterpret_cast<uint32*>(src_ptr) = ~(*reinterpret_cast<uint32*>(src_ptr));
+		src_ptr += sizeof(uint32);
+	}
+
+	if (src_n & 0b10) {
+		*reinterpret_cast<uint16*>(src_ptr) = ~(*reinterpret_cast<uint16*>(src_ptr));
+		src_ptr += sizeof(uint16);
+	}
+
+	if (src_n & 0b1) {
+		*reinterpret_cast<uint8*>(src_ptr) = ~(*reinterpret_cast<uint8*>(src_ptr));
+	}
+}
+
 int Base256uMath::bitwise_not(
 	void* const src,
 	std::size_t src_n
@@ -2037,7 +2083,7 @@ int Base256uMath::byte_shift_left(
 	memset(dst, 0, dst_n);
 	if (src_n <= by)
 		return ErrorCodes::OK;
-
+	 
 	// src_n > by and dst_n > by is true from this point on
 
 	memcpy(

@@ -3041,7 +3041,7 @@ Base256uMathTests::bit_shift_left::bit_shift_left() {
 	in_place_by_n_zero();
 }
 void Base256uMathTests::bit_shift_left::ideal_case() {
-	std::size_t src = 14687480300692146596,
+	std::size_t src = 14687480,
 		dst = 0,
 		by = 45;
 	assert(sizeof(src) == sizeof(dst) && sizeof(src) * 8 > by);
@@ -3055,8 +3055,8 @@ void Base256uMathTests::bit_shift_left::big_ideal_case() {
 	unsigned char dst[9];
 	std::size_t by = 45;
 	assert(sizeof(src) == sizeof(dst));
-	auto code = Base256uMath::bit_shift_left(src, sizeof(src), &by, sizeof(by), dst, sizeof(dst));
 	unsigned char answer[] = { 0, 0, 0, 0, 0, 224, 154, 249, 73, 126, 196, 75, 17, 100, 18 };
+	auto code = Base256uMath::bit_shift_left(src, sizeof(src), &by, sizeof(by), dst, sizeof(dst));
 	for (unsigned char i = 0; i < sizeof(dst); i++) {
 		assert(dst[i] == answer[i]);
 	}
@@ -3065,8 +3065,8 @@ void Base256uMathTests::bit_shift_left::big_ideal_case() {
 void Base256uMathTests::bit_shift_left::src_n_less_than_by() {
 	// if src_n * 8 < by, then dst is all zeros
 
-	std::size_t src = 1823827429;
-	std::size_t dst = 420735172730131;
+	std::size_t src = 182389;
+	std::size_t dst = 42070131;
 	std::size_t by = sizeof(src) * 8 + 1;
 	auto code = Base256uMath::bit_shift_left(&src, sizeof(src), &by, sizeof(by), &dst, sizeof(dst));
 	assert(dst == 0);
@@ -3075,7 +3075,7 @@ void Base256uMathTests::bit_shift_left::src_n_less_than_by() {
 void Base256uMathTests::bit_shift_left::src_n_greater_than_dst_n() {
 	// if src_n > dst_n, then the answer will be truncated and return the truncated error code
 
-	std::size_t src = 16559212640052646418;
+	std::size_t src = 146418;
 	unsigned int dst;
 	std::size_t by = 35;
 	auto code = Base256uMath::bit_shift_left(&src, sizeof(src), &by, sizeof(by), &dst, sizeof(dst));
@@ -3087,8 +3087,8 @@ void Base256uMathTests::bit_shift_left::src_n_less_than_dst_n() {
 	// if src_n < dst_n, then the answer will be copied into dst and the excess bytes will
 	// become zero.
 
-	unsigned int src = 3256569816;
-	std::size_t dst = 7654851108216826745;
+	unsigned int src = 39816;
+	std::size_t dst = 7168245;
 	std::size_t by = 24;
 	auto code = Base256uMath::bit_shift_left(&src, sizeof(src), &by, sizeof(by), &dst, sizeof(dst));
 	std::size_t answer = src << by;
@@ -3098,8 +3098,8 @@ void Base256uMathTests::bit_shift_left::src_n_less_than_dst_n() {
 void Base256uMathTests::bit_shift_left::src_n_zero() {
 	// if src_n is zero, then src is evaluated as all zeros which makes dst all zeros.
 
-	unsigned int src = 2423423423;
-	unsigned int dst = 428198231231;
+	unsigned int src = 2423423;
+	unsigned int dst = 42831231;
 	std::size_t by = 15;
 	auto code = Base256uMath::bit_shift_left(&src, 0, &by, sizeof(by), &dst, sizeof(dst));
 	assert(dst == 0);
@@ -3126,7 +3126,7 @@ void Base256uMathTests::bit_shift_left::by_n_zero() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bit_shift_left::in_place_ideal_case() {
-	std::size_t src = 14687480300692146596,
+	std::size_t src = 146146596,
 		by = 45;
 	decltype(src) answer = src << by;
 	assert(sizeof(src) * 8 > by);
@@ -3157,7 +3157,7 @@ void Base256uMathTests::bit_shift_left::in_place_src_n_less_than_by() {
 void Base256uMathTests::bit_shift_left::in_place_src_n_zero() {
 	// if src_n is zero, then nothing happens
 
-	unsigned int src = 2423423423,
+	unsigned int src = 24234233,
 		answer = src;
 	std::size_t by = 15;
 	auto code = Base256uMath::bit_shift_left(&src, 0, &by, sizeof(by));
