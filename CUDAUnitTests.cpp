@@ -3577,7 +3577,7 @@ void increment_big_ideal_case_kernel(int* code, void* output, std::size_t* size)
 	unsigned char num[] = { 72, 202, 187, 220, 23, 141, 160, 38, 41 };
 	auto return_code = Base256uMath::increment(num, sizeof(num));
 	memset(output, 0, *size);
-	memcpy(output, &num, sizeof(num));
+	memcpy(output, num, sizeof(num));
 	unsigned char answer[] = { 73, 202, 187, 220, 23, 141, 160, 38, 41 };
 	for (unsigned char i = 0; i < sizeof(num); i++) {
 		if (num[i] != answer[i]) {
@@ -3607,7 +3607,7 @@ void increment_big_overflow_kernel(int* code, void* output, std::size_t* size) {
 	unsigned char num[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255 };
 	auto return_code = Base256uMath::increment(num, sizeof(num));
 	memset(output, 0, *size);
-	memcpy(output, &num, sizeof(num));
+	memcpy(output, num, sizeof(num));
 	for (unsigned char i = 0; i < sizeof(num); i++) {
 		if (num[i] != 0) {
 			*code = i + 1;
@@ -3635,6 +3635,66 @@ void Base256uMathTests::CUDA::increment::big_overflow() {
 // ===================================================================================
 
 void Base256uMathTests::CUDA::decrement::test() {}
+
+__global__
+void decrement_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int num = 47157;
+	auto return_code = Base256uMath::decrement(&num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	if (num != 47156) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void decrement_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	unsigned char num[] = { 82, 130, 64, 83, 78, 107, 211, 34, 158 };
+	auto return_code = Base256uMath::decrement(num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, num, sizeof(num));
+	unsigned char answer[] = { 81, 130, 64, 83, 78, 107, 211, 34, 158 };
+	for (unsigned char i = 0; i < sizeof(num); i++) {
+		if (num[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = sizeof(num) + 1;
+	}
+}
+__global__
+void decrement_underflow_kernel(int* code, void* output, std::size_t* size) {
+	unsigned int num = 0;
+	auto return_code = Base256uMath::decrement(&num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, &num, sizeof(num));
+	if (num != (unsigned int)-1) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::FLOW) {
+		*code = 2;
+	}
+}
+__global__
+void decrement_big_underflow_kernel(int* code, void* output, std::size_t* size) {
+	unsigned char num[] = { 0,0,0,0,0,0,0,0,0 };
+	auto return_code = Base256uMath::decrement(num, sizeof(num));
+	memset(output, 0, *size);
+	memcpy(output, num, sizeof(num));
+	for (unsigned char i = 0; i < sizeof(num); i++) {
+		if (num[i] != 255) {
+			*code = i + 1;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::FLOW) {
+		*code = sizeof(num) + 1;
+	}
+}
 
 // ===================================================================================
 
