@@ -18,6 +18,10 @@ max:
 min
 	left_n_zero()
 	right_n_zero()
+increment
+	block_n_zero()
+decrement
+	block_n_zero()
 */
 
 namespace Base256uMathTests {
