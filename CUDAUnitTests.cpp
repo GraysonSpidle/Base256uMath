@@ -3634,7 +3634,12 @@ void Base256uMathTests::CUDA::increment::big_overflow() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::decrement::test() {}
+void Base256uMathTests::CUDA::decrement::test() {
+	ideal_case();
+	big_ideal_case();
+	underflow();
+	big_underflow();
+}
 
 __global__
 void decrement_ideal_case_kernel(int* code, void* output, std::size_t* size) {
@@ -3694,6 +3699,19 @@ void decrement_big_underflow_kernel(int* code, void* output, std::size_t* size) 
 	if (return_code != Base256uMath::ErrorCodes::FLOW) {
 		*code = sizeof(num) + 1;
 	}
+}
+
+void Base256uMathTests::CUDA::decrement::ideal_case() {
+	byte_shift_test_macro(decrement_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::decrement::big_ideal_case() {
+	byte_shift_test_macro(decrement_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::decrement::underflow() {
+	byte_shift_test_macro(decrement_underflow_kernel);
+}
+void Base256uMathTests::CUDA::decrement::big_underflow() {
+	byte_shift_test_macro(decrement_big_underflow_kernel);
 }
 
 // ===================================================================================
