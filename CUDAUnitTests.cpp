@@ -4758,7 +4758,86 @@ void Base256uMathTests::CUDA::log2::test() {}
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::log256::test() {}
+void Base256uMathTests::CUDA::log256::test() {
+	ideal_case();
+	big_ideal_case();
+	src_is_zero();
+	src_n_zero();
+}
+
+__global__
+void log256_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 16289501482060108362;
+	std::size_t dst;
+	auto return_code = Base256uMath::log256(&src, sizeof(src), &dst);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 7) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void log256_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 139, 46, 187, 204, 123, 55, 217, 147, 102, 0 };
+	std::size_t dst;
+	auto return_code = Base256uMath::log256(src, sizeof(src), &dst);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 8) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void log256_src_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t zero = 0;
+	std::size_t dst = 1467;
+	auto return_code = Base256uMath::log256(&zero, sizeof(zero), &dst);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1467) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 2;
+	}
+}
+__global__
+void log256_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	std::size_t src = 230841808201;
+	std::size_t dst = 1337;
+	auto return_code = Base256uMath::log256(&src, 0, &dst);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1337) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 2;
+	}
+}
+
+void Base256uMathTests::CUDA::log256::ideal_case() {
+	byte_shift_test_macro(log256_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::log256::big_ideal_case() {
+	byte_shift_test_macro(log256_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::log256::src_is_zero() {
+	byte_shift_test_macro(log256_src_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::log256::src_n_zero() {
+	byte_shift_test_macro(log256_src_n_zero_kernel);
+}
 
 // ===================================================================================
 
