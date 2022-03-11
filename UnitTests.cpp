@@ -1074,7 +1074,7 @@ void Base256uMathTests::subtract::in_place_left_smaller() {
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::subtract(&left, sizeof(left), &right, sizeof(right));
 	assert(left == answer);
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::subtract::in_place_big_left_bigger() {
 	unsigned char left[] = { 144, 165, 47, 40, 109, 135, 246, 58, 243, 129, 123, 49 };
@@ -1096,7 +1096,7 @@ void Base256uMathTests::subtract::in_place_big_left_smaller() {
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::subtract::in_place_underflow() {
 	unsigned int left = 0;
@@ -1117,14 +1117,14 @@ void Base256uMathTests::subtract::in_place_big_underflow() {
 	assert(code == Base256uMath::ErrorCodes::FLOW);
 }
 void Base256uMathTests::subtract::in_place_zero_for_left_n() {
-	// if left_n is zero, then the function does nothing and returns the truncated code
+	// if left_n is zero, then the function does nothing
 
 	std::size_t left = 1212121212121;
 	unsigned short right = 29332;
 	decltype(left) answer = 1212121212121;
 	auto code = Base256uMath::subtract(&left, 0, &right, sizeof(right));
 	assert(left == answer);
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::subtract::in_place_zero_for_right_n() {
 	// if right_n is zero, then it is the equivalent of subtracting by 0.

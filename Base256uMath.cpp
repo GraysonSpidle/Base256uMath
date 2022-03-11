@@ -405,11 +405,13 @@ int Base256uMath::add(
 ) {
 	memset(dst, 0, dst_n);
 	memcpy(dst, left, MIN(left_n, dst_n));
-	return ErrorCodes::FLOW * binary_add(right, right_n, dst, dst_n)
+	if (binary_add(right, right_n, dst, dst_n))
+		return ErrorCodes::FLOW;
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-		+ ErrorCodes::TRUNCATED * (dst_n < MAX(left_n, right_n))
+	else if (dst_n < MAX(left_n, right_n))
+		return ErrorCodes::TRUNCATED;
 #endif
-	;
+	return ErrorCodes::OK;
 }
 
 int Base256uMath::add(
@@ -530,10 +532,6 @@ int Base256uMath::subtract(
 				(buffer - borrow) == (r[i] * (i < right_n)) && (buffer - borrow)
 			);
 	}
-#if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
-	if (left_n < right_n)
-		return ErrorCodes::TRUNCATED;
-#endif
 	if (borrow)
 		return ErrorCodes::FLOW;
 	return ErrorCodes::OK;
