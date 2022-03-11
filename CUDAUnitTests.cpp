@@ -4754,7 +4754,105 @@ void Base256uMathTests::CUDA::subtract::in_place_zero_for_right_n() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::log2::test() {}
+void Base256uMathTests::CUDA::log2::test() {
+	ideal_case();
+	big_ideal_case();
+	src_is_zero();
+	src_n_zero();
+	dst_n_zero();
+}
+
+__global__
+void log2_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 0b00010000000100000;
+	std::size_t dst = 0;
+	auto return_code = Base256uMath::log2(&src, sizeof(src), &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 13) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void log2_big_ideal_case_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned char src[] = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 };
+	unsigned char dst[sizeof(std::size_t) + 1];
+	auto return_code = Base256uMath::log2(src, sizeof(src), dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	if (dst[0] != 64) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 2;
+	}
+}
+__global__
+void log2_src_is_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 0;
+	std::size_t dst = 1234567890;
+	auto return_code = Base256uMath::log2(&src, sizeof(src), &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1234567890) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 2;
+	}
+}
+__global__
+void log2_src_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 1337;
+	std::size_t dst = 1234567890;
+	auto return_code = Base256uMath::log2(&src, 0, &dst, sizeof(dst));
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1234567890) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 2;
+	}
+}
+__global__
+void log2_dst_n_zero_kernel(int* code, void* output, std::size_t* size) {
+	*code = 0;
+	unsigned int src = 1337;
+	std::size_t dst = 1234567890;
+	auto return_code = Base256uMath::log2(&src, sizeof(src), &dst, 0);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	if (dst != 1234567890) {
+		*code = 1;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 2;
+	}
+}
+
+void Base256uMathTests::CUDA::log2::ideal_case() {
+	byte_shift_test_macro(log2_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::log2::big_ideal_case() {
+	byte_shift_test_macro(log2_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::log2::src_is_zero() {
+	byte_shift_test_macro(log2_src_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::log2::src_n_zero() {
+	byte_shift_test_macro(log2_src_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::log2::dst_n_zero() {
+	byte_shift_test_macro(log2_dst_n_zero_kernel);
+}
 
 // ===================================================================================
 
