@@ -661,21 +661,21 @@ void Base256uMathTests::add::big_ideal_case() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::left_bigger() {
-	std::size_t left = 8388997117700998231;
+	std::size_t left = 8388997231;
 	unsigned int right = 62557;
 	std::size_t dst = 0;
 	assert(sizeof(left) > sizeof(right) && sizeof(left) == sizeof(dst));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
-	assert(dst == 8388997117701060788);
+	assert(dst == 8389059788);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::left_smaller() {
-	unsigned int left = 14728;
-	std::size_t right = 6254439797035876545;
+	unsigned int left = 62557;
+	std::size_t right = 8388997231;
 	std::size_t dst = 0;
 	assert(sizeof(left) < sizeof(right) && sizeof(right) == sizeof(dst));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
-	assert(dst == 6254439797035891273);
+	assert(dst == 8389059788);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::big_left_bigger() {
@@ -725,10 +725,11 @@ void Base256uMathTests::add::dst_too_small() {
 
 	std::size_t left = 8024591321371708722;
 	unsigned int right = 64081;
-	unsigned int dst = 0;
+	unsigned int dst = 0,
+		answer = left + right;
 	assert(sizeof(left) > sizeof(right) && sizeof(left) > sizeof(dst));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
-	assert(dst == (unsigned int)8024591321371772803);
+	assert(dst == answer);
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
 void Base256uMathTests::add::big_dst_too_small() {
@@ -799,7 +800,7 @@ void Base256uMathTests::add::in_place_big_ideal_case() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_left_bigger() {
-	std::size_t left = 8388997117700998231;
+	std::size_t left = 8388997231;
 	unsigned int right = 62557;
 	std::size_t answer = left + right;
 	assert(sizeof(left) > sizeof(right));
@@ -808,8 +809,8 @@ void Base256uMathTests::add::in_place_left_bigger() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_left_smaller() {
-	unsigned int left = 14728;
-	std::size_t right = 6254439797035876545;
+	unsigned int left = 62557;
+	std::size_t right = 8388997231;
 	unsigned int answer = left + right;
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right));

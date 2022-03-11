@@ -252,7 +252,7 @@ namespace Base256uMath {
 	* FLOW : integer overflow warning. Not fatal.
 	* TRUNCATED : when dst_n < MAX(left_n, right_n). Not fatal.
 	*/
-	int add(
+	__host__ __device__ int add(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -262,7 +262,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int add(
+	__host__ __device__ int add(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -284,7 +284,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* FLOW : integer overflow warning. Not fatal.
 	*/
-	int add(
+	__host__ __device__ int add(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -292,7 +292,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int add(
+	__host__ __device__ int add(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -315,7 +315,7 @@ namespace Base256uMath {
 	* FLOW : integer underflow warning. Not fatal.
 	* TRUNCATED : when dst_n < MAX(left_n, right_n). Not fatal.
 	*/
-	int subtract(
+	__host__ __device__ int subtract(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -325,7 +325,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int subtract(
+	__host__ __device__ int subtract(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -348,7 +348,7 @@ namespace Base256uMath {
 	* FLOW : integer underflow warning. Not fatal.
 	* TRUNCATED : when left_n < right_n. Not fatal.
 	*/
-	int subtract(
+	__host__ __device__ int subtract(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -356,7 +356,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int subtract(
+	__host__ __device__ int subtract(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -379,7 +379,7 @@ namespace Base256uMath {
 	* TRUNCATED : when !bool(dst_n) || dst_n < MIN(left_n, right_n). Not fatal.
 	* OOM : required additional memory but was denied. No modifications have occurred.
 	*/
-	int multiply(
+	__host__ __device__ int multiply(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -389,7 +389,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int multiply(
+	__host__ __device__ int multiply(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -412,7 +412,7 @@ namespace Base256uMath {
 	* TRUNCATED : when !bool(dst_n) || dst_n < MIN(left_n, right_n). Not fatal.
 	* OOM : required additional memory but was denied. No modifications have occurred.
 	*/
-	int multiply(
+	__host__ __device__ int multiply(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -420,7 +420,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int multiply(
+	__host__ __device__ int multiply(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -447,7 +447,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int divide(
+	__host__ __device__ int divide(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -459,7 +459,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int divide(
+	__host__ __device__ int divide(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -488,7 +488,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int divide(
+	__host__ __device__ int divide(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -498,7 +498,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int divide(
+	__host__ __device__ int divide(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -524,7 +524,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int divide_no_mod(
+	__host__ __device__ int divide_no_mod(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -534,7 +534,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int divide_no_mod(
+	__host__ __device__ int divide_no_mod(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -556,7 +556,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int divide_no_mod(
+	__host__ __device__ int divide_no_mod(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -564,7 +564,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int divide_no_mod(
+	__host__ __device__ int divide_no_mod(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -588,7 +588,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int mod(
+	__host__ __device__ int mod(
 		const void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -598,7 +598,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int mod(
+	__host__ __device__ int mod(
 		const void* const left,
 		std::size_t left_n,
 		std::size_t right,
@@ -620,7 +620,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to divide by zero. No modifications have occurred.
 	* OOM : required additional memory but was denied.
 	*/
-	int mod(
+	__host__ __device__ int mod(
 		void* const left,
 		std::size_t left_n,
 		const void* const right,
@@ -628,7 +628,7 @@ namespace Base256uMath {
 	);
 
 	// convenience in-place function
-	int mod(
+	__host__ __device__ int mod(
 		void* const left,
 		std::size_t left_n,
 		std::size_t right
@@ -648,7 +648,7 @@ namespace Base256uMath {
 	* DIVIDE_BY_ZERO : you tried to take the log of zero. No modifications have occurred.
 	* TRUNCATED : your dst was too small. Not fatal.
 	*/
-	int log2(
+	__host__ __device__ int log2(
 		const void* const src,
 		std::size_t src_n,
 		void* const dst,
@@ -656,7 +656,7 @@ namespace Base256uMath {
 	);
 
 	// convenience function
-	int log2(
+	__host__ __device__ int log2(
 		const void* const src,
 		std::size_t src_n,
 		bit_size_t dst
@@ -674,7 +674,7 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* DIVIDE_BY_ZERO : you tried to take the log of zero. No modifications have occurred.
 	*/
-	int log256(
+	__host__ __device__ int log256(
 		const void* const src,
 		std::size_t src_n,
 		std::size_t* const dst
