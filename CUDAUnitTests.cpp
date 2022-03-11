@@ -6,6 +6,7 @@
 #define KERNEL_CALL(func_name, code_ptr) func_name<<<1,1>>>(code_ptr); cudaDeviceSynchronize()
 #define KERNEL_CALL2(func_name, code_ptr, ptr1) func_name<<<1,1>>>(code_ptr, ptr1); cudaDeviceSynchronize()
 #define KERNEL_CALL3(func_name, code_ptr, ptr1, ptr2) func_name<<<1,1>>>(code_ptr, ptr1, ptr2); cudaDeviceSynchronize()
+#define KERNEL_CALL4(func_name, code_ptr, ptr1, ptr2, ptr3) func_name<<<1,1>>>(code_ptr, ptr1, ptr2, ptr3); cudaDeviceSynchronize()
 #include <cassert>
 #include <iostream>
 
@@ -38,7 +39,7 @@ if (err_code_name != cudaSuccess) { \
 	default: \
 		std::cout << "Unknown error: " << std::to_string(err_code_name) << std::endl; \
 	} \
-		assert(err_code_name == cudaSuccess); \
+	assert(err_code_name == cudaSuccess); \
 }
 
 // ===================================================================================
@@ -132,7 +133,6 @@ void Base256uMathTests::CUDA::is_zero::ideal_case() {
 	err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy_check_macro(err);
 	cudaFree(d_code);
-
 	assert(code == 0);
 }
 void Base256uMathTests::CUDA::is_zero::big_ideal_case() {
@@ -144,7 +144,6 @@ void Base256uMathTests::CUDA::is_zero::big_ideal_case() {
 	err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy_check_macro(err);
 	cudaFree(d_code);
-
 	assert(code == 0);
 }
 void Base256uMathTests::CUDA::is_zero::not_zero() {
@@ -156,7 +155,6 @@ void Base256uMathTests::CUDA::is_zero::not_zero() {
 	err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy_check_macro(err);
 	cudaFree(d_code);
-
 	assert(code == 0);
 }
 void Base256uMathTests::CUDA::is_zero::big_not_zero() {
@@ -168,7 +166,6 @@ void Base256uMathTests::CUDA::is_zero::big_not_zero() {
 	err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy_check_macro(err);
 	cudaFree(d_code);
-
 	assert(code == 0);
 }
 void Base256uMathTests::CUDA::is_zero::src_n_zero() {
@@ -180,7 +177,6 @@ void Base256uMathTests::CUDA::is_zero::src_n_zero() {
 	err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy_check_macro(err);
 	cudaFree(d_code);
-
 	assert(code == 0);
 }
 
@@ -5272,7 +5268,806 @@ void Base256uMathTests::CUDA::multiply::in_place_left_n_less_than_right_n() {
 
 // ===================================================================================
 
-void Base256uMathTests::CUDA::divide::test() {}
+void Base256uMathTests::CUDA::divide::test() {
+	ideal_case();
+	big_ideal_case();
+	left_is_zero();
+	left_n_zero();
+	right_is_zero();
+	right_n_zero();
+	left_n_less();
+	dst_n_less();
+	dst_n_zero();
+	remainder_n_less();
+	remainder_n_zero();
+	in_place_ideal_case();
+	in_place_big_ideal_case();
+	in_place_left_is_zero();
+	in_place_left_n_zero();
+	in_place_right_is_zero();
+	in_place_right_n_zero();
+	in_place_left_n_less();
+	in_place_remainder_n_less();
+	in_place_remainder_n_zero();
+}
+
+__global__
+void divide_ideal_case_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	std::size_t left = 0b11001000000000111111010,
+		right = 0b1100100010000,
+		dst, mod,
+		answer = left / right,
+		answer_mod = left % right;
+	auto return_code = Base256uMath::divide(
+		&left, sizeof(left),
+		&right, sizeof(right),
+		&dst, sizeof(dst),
+		&mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, &dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, &mod, sizeof(mod));
+	if (dst != answer) {
+		*code = 1;
+	}
+	else if (mod != answer_mod) {
+		*code = 2;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_big_ideal_case_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char dst[10];
+	unsigned char mod[10];
+	unsigned char answer[] = { 91, 1 };
+	unsigned char answer_mod[] = { 101, 110, 228, 117, 44, 39, 11, 193, 83 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(answer); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(answer_mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_left_is_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if left is zero, then dst and mod become all zeros
+
+	unsigned char left[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char dst[sizeof(left)];
+	unsigned char mod[sizeof(left)];
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != 0) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_right_is_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if right is zero, then nothing happens and a division by zero error code is returned
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 0;
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == i);
+		if (dst[i] != (i + 10)) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (i + 20)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 999;
+	}
+}
+__global__
+void divide_right_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if right_n is zero, then right is assumed to be all zeros and the function
+	// behaves as if right were zero.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 5;
+	unsigned char dst[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, 0,
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		assert(left[i] == i);
+		if (dst[i] != (i + 10)) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (i + 20)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 999;
+	}
+}
+__global__
+void divide_left_n_less_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// left > right, but 0 < left_n < right_n. 
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	unsigned char dst[sizeof(left)];
+	unsigned char mod[sizeof(left)];
+	assert(sizeof(left) < sizeof(right));
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	unsigned char answer[] = { 139, 2, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 69, 102, 238, 175, 91, 120, 162, 41, 0 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 999;
+	}
+}
+__global__
+void divide_left_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if left_n is zero, then it is assumed to be all zeros.
+	// that means dst and mod will be all zeros
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	unsigned char dst[sizeof(left)];
+	unsigned char mod[sizeof(left)];
+	auto return_code = Base256uMath::divide(
+		left, 0,
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != 0) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_dst_n_less_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// If dst_n is less than left_n, truncation might occur.
+	// To guarantee no truncation, dst should be the same size as left.
+	// If mod is of adequate size, then it should yield the correct answer.
+	// In any case, truncation or no, the function should return the truncated warning code.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139, 0 };
+	unsigned char dst[1]; // the answer has 2 significant characters, so this will demonstrate truncation
+	unsigned char mod[sizeof(left)];
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	unsigned char answer[] = { 91, 1 };
+	unsigned char answer_mod[] = { 101, 110, 228, 117, 44, 39, 11, 193, 83 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(answer_mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 999;
+	}
+}
+__global__
+void divide_dst_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if dst_n is zero, truncation is guaranteed and nothing will happen.
+	// Even if mod is of correct size, it will not be changed.
+	// The function should return the truncated warning code.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char dst[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, 0,
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != i) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (10 + i)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 999;
+	}
+}
+__global__
+void divide_remainder_n_less_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if remainder_n is less than left_n, then left_n is treated as if it were
+	// of size remainder_n. Guarantees truncation.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 0, 0, 0, 0 }; //, 88, 139, 0 };
+	unsigned char dst[sizeof(left)];
+	unsigned char mod[7]; // the remainder has 9 significant chars
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	unsigned char answer[] = { 250, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 91, 30, 23, 149, 189, 75, 0 };
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 999;
+	}
+}
+__global__
+void divide_remainder_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if remainder_n is zero, then the function behaves as if left_n
+	// was zero. Returns a truncated error code.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char dst[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		dst, sizeof(dst),
+		mod, 0
+	);
+	memset(output, 0, *size);
+	memcpy(output, dst, sizeof(dst));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(dst); i++) {
+		if (dst[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (10 + i)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_ideal_case_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	std::size_t left = 0b11001000000000111111010,
+		right = 0b1100100010000,
+		mod,
+		answer = left / right,
+		answer_mod = left % right;
+	auto return_code = Base256uMath::divide(
+		&left, sizeof(left),
+		&right, sizeof(right),
+		&mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, &left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, &mod, sizeof(mod));
+	if (left != answer) {
+		*code = 1;
+	}
+	else if (mod != answer_mod) {
+		*code = 2;
+	}
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_big_ideal_case_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[10];
+	unsigned char answer[] = { 91, 1 };
+	unsigned char answer_mod[] = { 101, 110, 228, 117, 44, 39, 11, 193, 83 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(answer); i++) {
+		if (left[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(answer_mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_left_is_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if left is zero, then left will be all zeros and mod will be a copy of left.
+	// 
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != i) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_left_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if left_n is zero, then left and mod are untouched.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+	unsigned char mod[] = { 100, 101, 102, 103, 104, 105, 106, 107, 108 };
+	auto return_code = Base256uMath::divide(
+		left, 0,
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != i) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (i + 100)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_right_is_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if right is zero, then nothing happens and a division by zero error code is returned
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 0;
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != i) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (i + 20)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_right_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if right_n is zero, then right is assumed to be all zeros and the function
+	// behaves as if right were zero.
+
+	unsigned char left[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
+	unsigned char right = 5;
+	unsigned char mod[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		&right, 0,
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != i) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (i + 20)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_left_n_less_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// left > right, but 0 < left_n < right_n. 
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 116 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 45, 0, 0 };
+	unsigned char mod[sizeof(left)];
+	assert(sizeof(left) < sizeof(right));
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	unsigned char answer[] = { 139, 2, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 69, 102, 238, 175, 91, 120, 162, 41, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_remainder_n_less_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if remainder_n is less than left_n, then left_n is treated as if it were
+	// of size remainder_n.
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 0, 0, 0, 0 }; //, 88, 139, 0 };
+	unsigned char mod[7]; // the remainder has 9 significant chars
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, sizeof(mod)
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	unsigned char answer[] = { 250, 1, 0, 0, 0, 0, 0, 0, 0, 0 };
+	unsigned char answer_mod[] = { 91, 30, 23, 149, 189, 75, 0 };
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != answer[i]) {
+			*code = i + 1;
+			return;
+		}
+	}
+	for (unsigned char i = 0; i < sizeof(mod); i++) {
+		if (mod[i] != answer_mod[i]) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+__global__
+void divide_in_place_remainder_n_zero_kernel(int* code, void* output, void* output_mod, std::size_t* size) {
+	*code = 0;
+	// if remainder_n is zero, then the function behaves as if left_n
+	// was zero. 
+
+	unsigned char left[] = { 23, 0, 84, 101, 183, 110, 254, 208, 89, 189 };
+	unsigned char right[] = { 182, 193, 139, 54, 147, 128, 223, 115, 139 };
+	unsigned char mod[] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 };
+	auto return_code = Base256uMath::divide(
+		left, sizeof(left),
+		right, sizeof(right),
+		mod, 0
+	);
+	memset(output, 0, *size);
+	memcpy(output, left, sizeof(left));
+	memset(output_mod, 0, *size);
+	memcpy(output_mod, mod, sizeof(mod));
+	for (unsigned char i = 0; i < sizeof(left); i++) {
+		if (left[i] != 0) {
+			*code = i + 1;
+			return;
+		}
+		if (mod[i] != (10 + i)) {
+			*code = i + 1 + 50;
+			return;
+		}
+	}
+	if (return_code != Base256uMath::ErrorCodes::OK) {
+		*code = 999;
+	}
+}
+
+#define divide_test_macro(kernel_name) \
+int code = -1; \
+int* d_code; \
+auto err = cudaMalloc(&d_code, sizeof(int)); \
+cudaMalloc_check_macro(err); \
+std::size_t size = 15; \
+unsigned char result[size]; \
+void* d_result; \
+err = cudaMalloc(&d_result, size); \
+cudaMalloc_check_macro(err); \
+unsigned char result_mod[size]; \
+void* d_result_mod; \
+err = cudaMalloc(&d_result_mod, size); \
+cudaMalloc_check_macro(err); \
+std::size_t* d_size; \
+err = cudaMalloc(&d_size, sizeof(std::size_t)); \
+cudaMalloc_check_macro(err); \
+err = cudaMemcpy(d_size, &size, sizeof(std::size_t), cudaMemcpyHostToDevice); \
+cudaMemcpy_check_macro(err); \
+KERNEL_CALL4(kernel_name, d_code, d_result, d_result_mod, d_size); \
+err = cudaMemcpy(&code, d_code, sizeof(int), cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+err = cudaMemcpy(result, d_result, size, cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+err = cudaMemcpy(result_mod, d_result_mod, size, cudaMemcpyDeviceToHost); \
+cudaMemcpy_check_macro(err); \
+if (code != 0) { \
+	std::cout << "code: " << std::to_string(code) << std::endl; \
+	std::cout << "result: "; \
+	for (std::size_t i = 0; i < size; i++) { \
+		std::cout << std::to_string(reinterpret_cast<unsigned char*>(result)[i]) << " "; \
+	} \
+	std::cout << "remainder: "; \
+	for (std::size_t i = 0; i < size; i++) { \
+		std::cout << std::to_string(reinterpret_cast<unsigned char*>(result_mod)[i]) << " "; \
+	} \
+	std::cout << std::endl; \
+	assert(code == 0); \
+} \
+cudaFree(d_code); \
+cudaFree(d_result); \
+cudaFree(d_result_mod); \
+cudaFree(d_size);
+
+void Base256uMathTests::CUDA::divide::ideal_case() {
+	divide_test_macro(divide_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::divide::big_ideal_case() {
+	divide_test_macro(divide_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::divide::left_is_zero() {
+	divide_test_macro(divide_left_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::left_n_zero() {
+	divide_test_macro(divide_left_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::right_is_zero() {
+	divide_test_macro(divide_right_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::right_n_zero() {
+	divide_test_macro(divide_right_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::left_n_less() {
+	divide_test_macro(divide_left_n_less_kernel);
+}
+void Base256uMathTests::CUDA::divide::dst_n_less() {
+	divide_test_macro(divide_dst_n_less_kernel);
+}
+void Base256uMathTests::CUDA::divide::dst_n_zero() {
+	divide_test_macro(divide_dst_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::remainder_n_less() {
+	divide_test_macro(divide_remainder_n_less_kernel);
+}
+void Base256uMathTests::CUDA::divide::remainder_n_zero() {
+	divide_test_macro(divide_remainder_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_ideal_case() {
+	divide_test_macro(divide_in_place_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_big_ideal_case() {
+	divide_test_macro(divide_in_place_big_ideal_case_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_left_is_zero() {
+	divide_test_macro(divide_in_place_left_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_left_n_zero() {
+	divide_test_macro(divide_in_place_left_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_right_is_zero() {
+	divide_test_macro(divide_in_place_right_is_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_right_n_zero() {
+	divide_test_macro(divide_in_place_right_n_zero_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_left_n_less() {
+	divide_test_macro(divide_in_place_left_n_less_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_remainder_n_less() {
+	divide_test_macro(divide_in_place_remainder_n_less_kernel);
+}
+void Base256uMathTests::CUDA::divide::in_place_remainder_n_zero() {
+	divide_test_macro(divide_in_place_remainder_n_zero_kernel);
+}
 
 // ===================================================================================
 

@@ -1340,7 +1340,7 @@ void Base256uMathTests::divide::ideal_case() {
 		&mod, sizeof(mod)
 	);
 	assert(dst == answer);
-	assert(mod = answer_mod);
+	assert(mod == answer_mod);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::divide::big_ideal_case() {
