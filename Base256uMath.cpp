@@ -1302,8 +1302,9 @@ int Base256uMath::mod(
 
 	// Now here's where the dividing starts
 
+	bool b = true;;
 	// while dst >= divisor (not the divisor_copy)
-	while (Base256uMath::compare(dst, dst_n, divisor, divisor_n) >= 0) {
+	while (Base256uMath::compare(dst, dst_n, divisor, divisor_n) >= 0 && b) {
 		// At the beginning of each pass, we reset the divisor_copy and bit shift it again
 		memset(divisor_copy, 0, dividend_n);
 		memcpy(divisor_copy, divisor, MIN(divisor_n, dividend_n));
@@ -1333,7 +1334,7 @@ int Base256uMath::mod(
 			// All cases eventually get here. In binary long division, you keep
 			// shifting to the right until you can no longer do so. This effectively
 			// does that.
-			Base256uMath::decrement(log2_diff, sizeof(log2_diff));
+			b = !bool(Base256uMath::decrement(log2_diff, sizeof(log2_diff)));
 			Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
 			break;
 		}
