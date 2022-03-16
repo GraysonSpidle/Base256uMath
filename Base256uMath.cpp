@@ -1005,7 +1005,7 @@ inline int binary_long_division(
 		case 0: // remainder == divisor_copy
 		case 1: // remainder > divisor_copy
 			// Do the subtraction
-			Base256uMath::subtract(
+			binary_subtract(
 				remainder, remainder_n,
 				divisor_copy, dividend_n
 			);
@@ -1021,8 +1021,9 @@ inline int binary_long_division(
 			// All cases eventually get here. In binary long division, you keep
 			// shifting to the right until you can no longer do so. This effectively
 			// does that.
-			Base256uMath::decrement(log2_diff, sizeof(log2_diff));
-			Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+			decrement_fast(log2_diff, sizeof(log2_diff));
+			memcpy(&bytes, log2_diff, sizeof(bytes));
+			bytes >> 3;
 			break;
 		}
 	}
