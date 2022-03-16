@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <string>
+#include <iostream>
 
 void Base256uMathTests::test_unit_tests() {
 	is_zero();
@@ -815,7 +816,7 @@ void Base256uMathTests::add::in_place_left_smaller() {
 	assert(sizeof(left) < sizeof(right));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right));
 	assert(left == answer);
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_big_left_bigger() {
 	unsigned char left[] = { 89, 41, 94, 204, 226, 89, 158, 240, 172, 184, 0, 248 };
@@ -837,7 +838,7 @@ void Base256uMathTests::add::in_place_big_left_smaller() {
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == answer[i]);
 	}
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_overflow() {
 	unsigned int left = -1;
@@ -864,7 +865,7 @@ void Base256uMathTests::add::in_place_zero_for_left_n() {
 	for (unsigned char i = 0; i < sizeof(left); i++) {
 		assert(left[i] == 10 + i);
 	}
-	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_zero_for_right_n() {
 	// If right_n is 0, then it's the equivalent of adding 0 to left.
@@ -987,19 +988,20 @@ void Base256uMathTests::subtract::big_underflow() {
 }
 void Base256uMathTests::subtract::dst_too_small() {
 	unsigned int left = 3971310598;
-	unsigned int right = 3473639866;
-	unsigned short dst = 0;
+	unsigned int right = 3473639;
+	unsigned short dst = 0,
+		answer = left - right;
 	assert(sizeof(left) == sizeof(right) && sizeof(left) > sizeof(dst));
 	auto code = Base256uMath::subtract(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
-	assert(dst == 55884);
+	assert(dst == answer);
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
 void Base256uMathTests::subtract::big_dst_too_small() {
 	unsigned char left[] = { 220, 139, 205, 222, 88, 100, 192, 105, 59, 106, 0, 179 };
-	unsigned char right[] = { 206, 72, 107, 123, 155, 149, 24, 175, 134 };
+	unsigned char right[] = { 206, 72, 107, 123, 155, 149, 24, 175 };
 	unsigned char dst[9];
 	auto code = Base256uMath::subtract(left, sizeof(left), right, sizeof(right), dst, sizeof(dst));
-	unsigned char answer[] = { 14, 67, 98, 99, 189, 206, 167, 186, 180, 105, 0, 179 };
+	unsigned char answer[] = { 14, 67, 98, 99, 189, 206, 167, 186, 58, 106, 0, 179 };
 	for (unsigned char i = 0; i < sizeof(dst); i++) {
 		assert(answer[i] == dst[i]);
 	}

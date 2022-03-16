@@ -63,7 +63,7 @@ Targeted for the C++14 standard and big endian machines.
 #define BASE256UMATH_SUPPRESS_TRUNCATED_CODE 0
 #endif
 
-//#define BASE256UMATH_FAST_OPERATORS
+#define BASE256UMATH_FAST_OPERATORS
 
 /* 
 Namespace that houses functions to satisfy most operators that primitive numbers have.
