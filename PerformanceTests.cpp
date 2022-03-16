@@ -424,6 +424,8 @@ void Base256uMathTests::Performance::multiply(const std::size_t& sample_size, co
 	void* dst = malloc(product_size);
 	if (!num || !num2 || !dst)
 		abort();
+	memset(num, 255, size);
+	memset(num2, 255, size);
 	for (std::size_t i = 0; i < sample_size; i++) {
 		std::cout << "multiply(): ";
 		print_progress(i, sample_size);
