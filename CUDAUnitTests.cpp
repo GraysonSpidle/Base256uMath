@@ -1,4 +1,4 @@
-#ifdef __NVCC__
+#ifdef __CUDACC__
 #include "CUDAUnitTests.h"
 #include "Base256uMath.h"
 #include <cuda.h>
@@ -4051,7 +4051,7 @@ void add_in_place_left_smaller_kernel(int* code, void* output, std::size_t* size
 	if (left != answer) {
 		*code = 1;
 	}
-	else if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+	else if (return_code != Base256uMath::ErrorCodes::OK) {
 		*code = 2;
 	}
 }
@@ -4089,7 +4089,7 @@ void add_in_place_big_left_smaller_kernel(int* code, void* output, std::size_t* 
 			return;
 		}
 	}
-	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+	if (return_code != Base256uMath::ErrorCodes::OK) {
 		*code = sizeof(left) + 1;
 	}
 }
@@ -4142,7 +4142,7 @@ void add_in_place_zero_for_left_n_kernel(int* code, void* output, std::size_t* s
 			return;
 		}
 	}
-	if (return_code != Base256uMath::ErrorCodes::TRUNCATED) {
+	if (return_code != Base256uMath::ErrorCodes::OK) {
 		*code = sizeof(left) + 1;
 	}
 }
@@ -4418,7 +4418,7 @@ __global__
 void subtract_dst_too_small_kernel(int* code, void* output, std::size_t* size) {
 	*code = 0;
 	unsigned int left = 3971310598;
-	unsigned int right = 3473639866;
+	unsigned int right = 3473639;
 	unsigned short dst = 0,
 		answer = left - right;
 	auto return_code = Base256uMath::subtract(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
@@ -4435,12 +4435,12 @@ __global__
 void subtract_big_dst_too_small_kernel(int* code, void* output, std::size_t* size) {
 	*code = 0;
 	unsigned char left[] = { 220, 139, 205, 222, 88, 100, 192, 105, 59, 106, 0, 179 };
-	unsigned char right[] = { 206, 72, 107, 123, 155, 149, 24, 175, 134 };
+	unsigned char right[] = { 206, 72, 107, 123, 155, 149, 24, 175 };
 	unsigned char dst[9];
 	auto return_code = Base256uMath::subtract(left, sizeof(left), right, sizeof(right), dst, sizeof(dst));
 	memset(output, 0, *size);
 	memcpy(output, dst, sizeof(dst));
-	unsigned char answer[] = { 14, 67, 98, 99, 189, 206, 167, 186, 180, 105, 0, 179 };
+	unsigned char answer[] = { 14, 67, 98, 99, 189, 206, 167, 186, 58, 106, 0, 179 };
 	for (unsigned char i = 0; i < sizeof(dst); i++) {
 		if (answer[i] != dst[i]) {
 			*code = i + 1;
@@ -4716,7 +4716,6 @@ void Base256uMathTests::CUDA::subtract::zero_for_right_n() {
 void Base256uMathTests::CUDA::subtract::zero_for_dst_n() {
 	byte_shift_test_macro(subtract_zero_for_dst_n_kernel);
 }
-
 void Base256uMathTests::CUDA::subtract::in_place_ideal_case() {
 	byte_shift_test_macro(subtract_in_place_ideal_case_kernel);
 }
