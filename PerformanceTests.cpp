@@ -480,6 +480,7 @@ void Base256uMathTests::Performance::divide_no_mod(const std::size_t& sample_siz
 	void* dst = malloc(size);
 	if (!num || !dst || !divisor)
 		abort();
+	memset(num, 255, size);
 	memset(divisor, 0, size);
 	reinterpret_cast<unsigned char*>(divisor)[0] = 1;
 	for (std::size_t i = 0; i < sample_size; i++) {
@@ -507,6 +508,7 @@ void Base256uMathTests::Performance::mod(const std::size_t& sample_size, const s
 	void* dst = malloc(size);
 	if (!num || !dst || !divisor)
 		abort();
+	memset(num, 255, size);
 	memset(divisor, 0, size);
 	reinterpret_cast<unsigned char*>(divisor)[0] = 1;
 	for (std::size_t i = 0; i < sample_size; i++) {
