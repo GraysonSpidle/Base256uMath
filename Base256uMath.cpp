@@ -859,15 +859,16 @@ inline int binary_long_division(
 	// the difference would be 0.
 
 	Base256uMath::bit_size_t log2_diff;
-	Base256uMath::subtract(
-		dividend_log2, sizeof(dividend_log2),
-		divisor_log2, sizeof(divisor_log2),
-		log2_diff, sizeof(log2_diff)
+	memcpy(log2_diff, dividend_log2, sizeof(log2_diff));
+	binary_subtract(
+		log2_diff, sizeof(log2_diff),
+		divisor_log2, sizeof(divisor_log2)
 	);
 
 	// This number is for an offset for the quotient
 	std::size_t bytes;
-	Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+	memcpy(&bytes, log2_diff, sizeof(bytes));
+	bytes >>= 3;
 
 	// We need to copy the divisor because we need to be able to bit shift it
 
@@ -896,7 +897,7 @@ inline int binary_long_division(
 		case 0: // remainder == divisor_copy
 		case 1: // remainder > divisor_copy
 			// Do the subtraction
-			Base256uMath::subtract(
+			binary_subtract(
 				remainder, remainder_n,
 				divisor_copy, dividend_n
 			);
@@ -913,7 +914,8 @@ inline int binary_long_division(
 			// shifting to the right until you can no longer do so. This effectively
 			// does that.
 			b = !bool(decrement_fast(log2_diff, sizeof(log2_diff)));
-			Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+			memcpy(&bytes, log2_diff, sizeof(bytes));
+			bytes >>= 3;
 			break;
 		}
 
@@ -970,15 +972,17 @@ inline int binary_long_division(
 	// the difference would be 0.
 
 	Base256uMath::bit_size_t log2_diff;
-	Base256uMath::subtract(
-		dividend_log2, sizeof(dividend_log2),
-		divisor_log2, sizeof(divisor_log2),
-		log2_diff, sizeof(log2_diff)
+	memcpy(log2_diff, dividend_log2, sizeof(log2_diff));
+	binary_subtract(
+		log2_diff, sizeof(log2_diff),
+		divisor_log2, sizeof(divisor_log2)
 	);
 
 	// This number is for an offset for the quotient
 	std::size_t bytes;
-	Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
+	memcpy(&bytes, log2_diff, sizeof(bytes));
+	bytes >>= 3;
+	//Base256uMath::bit_shift_right(log2_diff, sizeof(log2_diff), 3, &bytes, sizeof(bytes));
 
 	// We need to copy the divisor because we need to be able to bit shift it
 
@@ -1444,7 +1448,7 @@ int Base256uMath::log2(
 
 	memcpy(dst, &sig_byte, MIN(sizeof(std::size_t), dst_n));
 
-	bit_shift_left(dst, dst_n, 3); // Multiplying by 8 since there are 8 bits in a byte
+	bit_shift_left_fast(dst, dst_n, 3); // Multiplying by 8 since there are 8 bits in a byte
 
 	auto num = sig_bit(reinterpret_cast<const unsigned char*>(src)[sig_byte]);
 
