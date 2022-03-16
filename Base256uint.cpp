@@ -335,6 +335,30 @@ void Base256uint::operator-=(std::size_t other) {
 	error = Base256uMath::subtract(raw, size, &other, sizeof(other));
 }
 
+void Base256uint::operator*=(const Base256uint& other) {
+	error = Base256uMath::multiply(raw, size, other.raw, other.size);
+}
+
+void Base256uint::operator*=(std::size_t other) {
+	error = Base256uMath::multiply(raw, size, &other, sizeof(other));
+}
+
+void Base256uint::operator/=(const Base256uint& other) {
+	error = Base256uMath::divide_no_mod(raw, size, other.raw, other.size);
+}
+
+void Base256uint::operator/=(std::size_t other) {
+	error = Base256uMath::divide_no_mod(raw, size, &other, sizeof(other));
+}
+
+void Base256uint::operator%=(const Base256uint& other) {
+	error = Base256uMath::mod(raw, size, other.raw, other.size);
+}
+
+void Base256uint::operator%=(std::size_t other) {
+	error = Base256uMath::mod(raw, size, &other, sizeof(other));
+}
+
 Base256uint Base256uint::log2(const Base256uint& other) {
 	Base256uint output { sizeof(std::size_t) + 1 };
 	output.error = Base256uMath::log2(other.raw, other.size, output.raw, output.size);

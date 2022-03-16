@@ -11,7 +11,6 @@ the remainder, which forces you to do 1 more division
 than if you didn't go with the object oriented approach. 
 A sacrifice that must be made for the cleaner code this
 approach brings. Hopefully the sacrifice is worth it to you.
-
 */
 
 #ifndef __BASE256UINT_H__
@@ -20,10 +19,6 @@ approach brings. Hopefully the sacrifice is worth it to you.
 #include <cstdlib> // std::size_t
 #include "Base256uMath.h"
 
-/* 
-
-
-*/
 struct Base256uint {
 public:
 	typedef Base256uMath::ErrorCodes ErrorCodes;
