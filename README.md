@@ -1,25 +1,45 @@
 # Base256uMath
+Math library for big unsigned numbers.
 
-I wrote this repo for another project.
-I wanted a library that could manipulate large unsigned numbers with the capability of:
+I wrote this repo for another project and decided to share it with the world.
+I intend to keep this repo licensed with the unlicense license for the foreseeable future.
+I don't claim to be the greatest mathematician or the greatest computer scientist, but this gets the job done.
+I've had a lot of fun writing it and I've learned a lot on my journey.
+
+## Capabilities
+
+This library covers all the basic operators a number should need:
 - add
 - subtract
 - multiply
 - divide
 - modulo
+- increment
+- decrement
+- compare
+- is zero (essentially the opposite of the `bool()` operator)
+- bit shifting
+- bitwise and
+- bitwise or
+- bitwise xor
+- bitwise not
+
+And also some extra functions:
 - log2
+- log256
+- min
+- max
 
-I also wanted the library to be trivially convertible for CUDA code, which had a laundry list of things I could not use.
-
-I was dissatisfied with the choices I found, so I made this. I don't claim to be the greatest mathematician or computer scientist, but this gets the job done.
-
-I've had a lot of fun writing it and I learned a lot on my journey.
+### CUDA
+This library was designed to be compatible with CUDA. What that means is the functions are designed (and tested) to work on NVIDIA CUDA enabled GPUs.
+I don't have an array of GPUs to test this on (I use a `Quadro K2200` for testing), so if there is a problem on newer GPUs then I will not be aware of it.
 
 ## Targets
 - `C++14` language standard
 - Big Endian machine
 - 64 bit machines (until I can confirm that it works on 32 bit).
-- msvc and gcc compiler (nvcc support is coming)
+- msvc and gcc compiler
+- cuda support (although I would only qualify it as "barely" right now)
 
 ## Installation
 Your typical installation should be fairly simple. Drag and drop the header and source files into their appropriate directories in your project.
@@ -43,11 +63,11 @@ nvcc -arch sm_50 -m 64 -o Tests Tests.o Base256uMath.o UnitTests.o CUDAUnitTests
 - Run with `./Tests`
 
 ## Tutorial
-I'm gonna write a short tutorial on how to use this. In case my future self is too lazy to figure it out himself.
-I have written a more in depth explanation in the `Base256uMath.h` header file.
+Here is a short tutorial on how to use this. In case my future self is too lazy to figure it out himself.
+I urge you to read the documentation (I know, reading sucks) for more information.
 
 ```c++
-#include "Base256uMath.h"
+#include "Base256uMath.h" // include the header file like any other
 #include <iostream>
 
 int main() {
@@ -63,7 +83,8 @@ int main() {
   auto code = Base256uMath::add(number, sizeof(number), another, sizeof(another), dst, 10);
 
   // Most functions return an error code. None of them throw any exceptions.
-  // An enumeration of error codes can be found at Base256uMath::ErrorCodes
+  // An enumeration of error codes can be found at Base256uMath::ErrorCodes.
+  // Function documentation will also tell you what codes the function can return.
   
   switch (code) {
   case Base256uMath::ErrorCodes::OK:
@@ -87,6 +108,7 @@ int main() {
   // You can even mix up the usage of primitives and big numbers
   code = Base256uMath::multiply(number, sizeof(number), &another2, sizeof(another2), dst, 10);
   
+  // Error checking is what you would expect. Fatal errors are < 0 and warnings are > 0
   if (code == Base256uMath::ErrorCodes::OOM) {
     std::cout << "Oh no! We ran out of memory!" << std::endl;
   }
@@ -99,15 +121,16 @@ int main() {
 }
 ```
 
+This library is by no means dummy proof, and some optimizations that a compiler might do will probably need to be done by you.
+For example, if you are multiplying by 2, instead of using the `multiply()` function use `bit_shift_left()`. It accomplishes the same thing but a lot faster.
+
 ## What I'm Working On Now
-- in-place multiply
-- in-place divide
-- in-place modulo
-- nvcc compatibility
-- 32 bit compatibility
+- optimize multiply
+- optimize divide
+- optimize modulo
+- nvcc (CUDA) compatibility
+- 32 bit compatibility (mostly just verifying it passes tests)
 - polishing clarity in documentation
 
 ## Some nice things I'd like to have happen
-- optimize divide
-- optimize mod
 - nvcc kernel variants of functions
