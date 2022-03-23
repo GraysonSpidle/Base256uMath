@@ -411,6 +411,8 @@ namespace Base256uMath {
 	* OK : everything went well.
 	* TRUNCATED : when !bool(dst_n) || dst_n < MIN(left_n, right_n). Not fatal.
 	* OOM : required additional memory but was denied. No modifications have occurred.
+		if BASE256UMATH_FAST_OPERATORS is defined (and you're not on cuda), then this
+		function doesn't return this error code.
 	*/
 	__host__ __device__ int multiply(
 		void* const left,
