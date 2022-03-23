@@ -1019,6 +1019,4 @@ __host__ __device__ int byte_shift_right(
 		std::size_t by
 	);
 }
-
-
 #endif // __BASE256UMATH_H__

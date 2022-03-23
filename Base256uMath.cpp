@@ -24,6 +24,12 @@ Author: Grayson Spidle
 
 // ==============================================================================================
 
+#if BASE256UMATH_ARCHITECTURE == 64
+typedef uint32_t half_size_t;
+#elif BASE256UMATH_ARCHITECTURE == 32
+typedef uint16_t half_size_t;
+#endif
+
 __host__ __device__
 void bit_shift_left_fast(
 	void* const dst,
@@ -32,13 +38,25 @@ void bit_shift_left_fast(
 );
 
 __host__ __device__
-std::size_t convert_to_size_t(const void* const src, std::size_t n) {
+std::size_t convert_to_size_t(const void* const src, const std::size_t& n) {
+	/*
 	std::size_t output = *reinterpret_cast<const std::size_t*>(src);
-	if (n >= 8)
+	if (n >= BASE256UMATH_ARCHITECTURE / 8)
 		return output;
 	std::size_t mask = -1;
-	mask <<= 8 * n;
+	mask <<= (BASE256UMATH_ARCHITECTURE / 8) * n;
 	return output & ~mask;
+	*/
+	std::size_t output = 0;
+	memcpy(&output, src, MIN(sizeof(output), n));
+	return output;
+}
+
+__host__ __device__
+half_size_t convert_to_half_size_t(const void* const src, const std::size_t& n) {
+	half_size_t output = 0;
+	memcpy(&output, src, MIN(sizeof(output), n));
+	return output;
 }
 
 __host__ __device__
@@ -522,83 +540,6 @@ int Base256uMath::subtract(
 }
 
 __host__ __device__
-inline void split_at_low(
-	const void* const num,
-	const std::size_t& num_n,
-	const std::size_t& n,
-	void* const dst
-) {
-	Base256uMath::add(dst, num_n >> 1, num, num_n >> 1);
-}
-
-__host__ __device__
-inline void split_at_high(
-	const void* const num,
-	const std::size_t& num_n,
-	const std::size_t& n,
-	void* const dst
-) {
-	Base256uMath::add(dst, num_n - n, reinterpret_cast<const unsigned char*>(num) + n, num_n - n);
-}
-
-__host__ __device__
-int karatsuba_recurse(
-	const void* const left,
-	const std::size_t& left_n,
-	const void* const right,
-	const std::size_t& right_n,
-	void* const dst,
-	const std::size_t& dst_n
-) {
-	// exit condition
-	if (
-#if BASE256UMATH_ARCHITECTURE == 64
-		Base256uMath::compare(left, left_n, ULLONG_MAX) <= 0 ||
-		Base256uMath::compare(right, right_n, ULLONG_MAX) <= 0
-#elif BASE256UMATH_ARCHITECTURE == 32
-		Base256uMath::compare(left, left_n, ULONG_MAX) <= 0 ||
-		Base256uMath::compare(right, right_n, ULONG_MAX) <= 0
-#endif
-	) {
-		// TODO
-		return Base256uMath::ErrorCodes::OK;
-	}
-
-	memset(dst, 0, dst_n);
-
-	std::size_t m;
-
-	switch (Base256uMath::compare(left, left_n, right, right_n)) {
-	case 0: // left == right
-	case -1: // left < right
-		if (Base256uMath::log256(left, left_n, &m) == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
-			memset(dst, 0, dst_n);
-			return Base256uMath::ErrorCodes::OK;
-		}
-		break;
-	case 1: // left > right
-		if (Base256uMath::log256(right, right_n, &m) == Base256uMath::ErrorCodes::DIVIDE_BY_ZERO) {
-			memset(dst, 0, dst_n);
-			return Base256uMath::ErrorCodes::OK;
-		}
-		break;
-	default:
-		abort();
-	}
-
-	// left and right are guaranteed to be > 0 now
-	
-	std::size_t m2 = m >> 8;
-
-	// z1
-
-
-
-
-	return 0;
-}
-
-__host__ __device__
 inline void multiply_char_and_char(
 	const unsigned char& left,
 	const unsigned char& right,
@@ -606,7 +547,7 @@ inline void multiply_char_and_char(
 	unsigned char* overflow
 ) {
 	uint16_t big = left * right;
-	*dst = big & 255;
+	*dst = big;
 	*overflow = big >> 8;
 }
 
@@ -614,35 +555,36 @@ __host__ __device__
 inline void multiply_big_and_char(
 	const void* const big,
 	const std::size_t& big_n,
-	unsigned char right,
+	const unsigned char& right,
 	unsigned char* dst
 ) {
 	// dst better be of size of at least big_n + 1
 
-	*reinterpret_cast<unsigned char*>(dst) = 0;
+	*dst = 0;
 	unsigned char product;
 	for (std::size_t i = 0; i < big_n; i++) {
 		multiply_char_and_char(
 			*(reinterpret_cast<const unsigned char*>(big) + i),
 			right,
 			&product,
-			reinterpret_cast<unsigned char*>(dst) + i + 1
+			dst + i + 1
 		);
-		product += *(reinterpret_cast<unsigned char*>(dst) + i);
 
-		*(reinterpret_cast<unsigned char*>(dst) + i + 1) += product < *(reinterpret_cast<unsigned char*>(dst) + i);
-		*(reinterpret_cast<unsigned char*>(dst) + i) = product;
+		product += *(dst + i);
+
+		*(dst + i + 1) += product < *(dst + i);
+		*(dst + i) = product;
 	}
 }
 
 __host__ __device__
 inline int binary_multiply(
 	const void* const left,
-	std::size_t left_n,
+	const std::size_t& left_n,
 	const void* const right,
-	std::size_t right_n,
+	const std::size_t& right_n,
 	void* const dst,
-	std::size_t dst_n
+	const std::size_t& dst_n
 ) {
 	// We're approaching this like binary, but we're using bytes instead of bits
 	memset(dst, 0, dst_n);
@@ -678,6 +620,153 @@ inline int binary_multiply(
 	return Base256uMath::ErrorCodes::OK;
 }
 
+__host__ __device__
+inline void binary_multiply_fast_big_and_half_size_t(
+	const void* const left,
+	const std::size_t& left_n,
+	const half_size_t& right_ptr,
+	void* const dst,
+	const std::size_t& dst_n
+) {
+	std::size_t product;
+	bool b;
+
+	auto left_ptr = reinterpret_cast<const uint8_t*>(left);
+	auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+	auto dst_end = reinterpret_cast<uint8_t*>(dst) + dst_n;
+
+	// 16 bit or 32 bit (depending on architecture)
+
+	std::size_t temp;
+	for (std::size_t k = 0; k < left_n / sizeof(half_size_t) && dst_ptr < dst_end; k++) {
+		product = (std::size_t)reinterpret_cast<const half_size_t*>(left_ptr)[0] *
+			(std::size_t)right_ptr;
+
+		binary_add(
+			dst_ptr,
+			dst_n,
+			&product,
+			sizeof(product)
+		);
+
+		left_ptr += sizeof(half_size_t);
+		dst_ptr += sizeof(half_size_t);
+	}
+
+	/* 3 Scenarios can occur:
+	
+	Scenario 1 - primitive multiplication
+	Condition: left_n < sizeof(half_size_t)
+
+	If the condition is met, then the code below should do something, and the
+	code above did not do anything.
+
+	Scenario 2 - big multiplication with some residual data
+	Condition: left_n > sizeof(half_size_t) && left_n % sizeof(half_size_t) != 0
+
+	If the condition is met, then the code below should do something, and the
+	code above did do something just not enough.
+
+	Scenario 3 - ideal case, the code above did everything necessary
+	Condition: left_n >= sizeof(half_size_t) && left_n % sizeof(half_size_t) == 0
+
+	If the condition is met, then all the code down below should do nothing since
+	we've already iterated through all the bytes in the left number.
+	*/
+
+#if BASE256UMATH_ARCHITECTURE >= 64
+	// 16 bit
+	b = left_n & 0b10;
+	// checking if dst can accommodate
+	b = b && dst_ptr < dst_end;
+	// if there are at least 2 bytes left over, then we multiply them by the right number
+	product = b * (std::size_t)reinterpret_cast<const uint16_t*>(left_ptr)[0] *
+		(std::size_t)right_ptr;
+
+	binary_add(
+		dst_ptr,
+		dst_end - dst_ptr,
+		&product,
+		b * sizeof(product)
+	);
+
+	left_ptr += sizeof(uint16_t) * b;
+	dst_ptr += sizeof(uint16_t) * b;
+#endif
+
+	// 8 bit
+	b = left_n & 0b1;
+	// checking if dst can accommodate
+	b = b && dst_ptr < dst_end;
+	// if there is at least 1 byte left over, then we multiply it by the right number
+	product = b * (std::size_t)reinterpret_cast<const uint8_t*>(left_ptr)[0] *
+		(std::size_t)right_ptr;
+
+	binary_add(
+		dst_ptr,
+		dst_end - dst_ptr,
+		&product,
+		b * sizeof(product)
+	);
+}
+
+__host__ __device__
+inline int binary_multiply_fast(
+	const void* const left,
+	const std::size_t& left_n,
+	const void* const right,
+	const std::size_t& right_n,
+	void* const dst,
+	const std::size_t& dst_n
+) {
+	memset(dst, 0, dst_n);
+
+	auto left_ptr = reinterpret_cast<const uint8_t*>(left);
+	auto left_end = reinterpret_cast<const uint8_t*>(left) + left_n;
+	auto right_ptr = reinterpret_cast<const uint8_t*>(right);
+	auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+
+	std::size_t product;
+	for (std::size_t i = 0; i < right_n / sizeof(half_size_t); i++) {
+		binary_multiply_fast_big_and_half_size_t(
+			left, left_n,
+			reinterpret_cast<const half_size_t*>(right_ptr)[0],
+			dst_ptr,
+			(dst_n + reinterpret_cast<decltype(dst_ptr)>(dst)) - dst_ptr
+		);
+
+		// Going on to the next number group
+
+		right_ptr += sizeof(half_size_t);
+		dst_ptr += sizeof(half_size_t);
+	}
+
+	bool b;
+#if BASE256UMATH_ARCHITECTURE >= 64
+	b = (reinterpret_cast<const uint8_t*>(right) + right_n - right_ptr) & 0b10;
+	binary_multiply_fast_big_and_half_size_t(
+		left, left_n,
+		reinterpret_cast<const uint16_t*>(right_ptr)[0],
+		dst_ptr,
+		(dst_n + reinterpret_cast<decltype(dst_ptr)>(dst) - dst_ptr) * b
+	);
+	right_ptr += sizeof(uint16_t) * b;
+	dst_ptr += sizeof(uint16_t) * b;
+#endif
+
+	b = (reinterpret_cast<const uint8_t*>(right) + right_n - right_ptr) & 0b1;
+	binary_multiply_fast_big_and_half_size_t(
+		left, left_n,
+		reinterpret_cast<const uint8_t*>(right_ptr)[0],
+		dst_ptr,
+		(dst_n + reinterpret_cast<decltype(dst_ptr)>(dst) - dst_ptr) * b
+	);
+	right_ptr += sizeof(uint8_t) * b;
+	dst_ptr += sizeof(uint8_t) * b;
+
+	return 0;
+}
+
 int Base256uMath::multiply(
 	const void* const left,
 	std::size_t left_n,
@@ -690,11 +779,13 @@ int Base256uMath::multiply(
 		memset(dst, 0, dst_n);
 		return Base256uMath::ErrorCodes::OK;
 	}
-
-	
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	auto code = binary_multiply_fast(left, left_n, right, right_n, dst, dst_n);
+#else
 	auto code = binary_multiply(left, left_n, right, right_n, dst, dst_n);
 	if (code < 0)
 		return code;
+#endif
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (!bool(dst_n) || dst_n < MIN(left_n, right_n))
@@ -1448,7 +1539,11 @@ int Base256uMath::log2(
 
 	memcpy(dst, &sig_byte, MIN(sizeof(std::size_t), dst_n));
 
+#ifndef __CUDACC__
 	bit_shift_left_fast(dst, dst_n, 3); // Multiplying by 8 since there are 8 bits in a byte
+#else
+	bit_shift_left(dst, dst_n, 3);
+#endif
 
 	auto num = sig_bit(reinterpret_cast<const unsigned char*>(src)[sig_byte]);
 
