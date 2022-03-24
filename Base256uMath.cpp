@@ -2229,6 +2229,57 @@ int Base256uMath::bitwise_and(
 	return ErrorCodes::OK;
 }
 
+__host__ __device__
+inline void bitwise_or_fast(
+	void* const left,
+	const std::size_t& left_n,
+	const void* const right,
+	const std::size_t& right_n
+) {
+	auto l_ptr = reinterpret_cast<uint8_t*>(left);
+	auto r_ptr = reinterpret_cast<const uint8_t*>(right);
+#if BASE256UMATH_ARCHITECTURE == 64
+	auto l_end = reinterpret_cast<uint8_t*>(left) + (left_n & ~(std::size_t)0b111);
+	auto r_end = reinterpret_cast<const uint8_t*>(right) + (right_n & ~(std::size_t)0b111);
+#elif BASE256UMATH_ARCHITECTURE == 32
+	auto l_end = reinterpret_cast<uint8_t*>(left) + (left_n & ~(std::size_t)0b11);
+	auto r_end = reinterpret_cast<const uint8_t*>(right) + (right_n & ~(std::size_t)0b11);
+#endif
+
+	while (l_ptr != l_end) {
+		*reinterpret_cast<std::size_t*>(l_ptr) |=
+			*reinterpret_cast<const std::size_t*>(r_ptr) * (r_ptr != r_end);
+		l_ptr += sizeof(std::size_t);
+		r_ptr += sizeof(std::size_t) * (r_ptr != r_end);
+	}
+
+	r_end = reinterpret_cast<const uint8_t*>(right) + right_n;
+
+	bool b;
+#if BASE256UMATH_ARCHITECTURE >= 64
+	b = left_n & 0b100;
+	*reinterpret_cast<uint32_t*>(l_ptr) |=
+		(*reinterpret_cast<uint32_t*>(l_ptr) * !b) |
+		convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, sizeof(uint32_t)));
+
+	l_ptr += sizeof(uint32_t) * b;
+	r_ptr += sizeof(uint32_t) * b;
+#endif
+
+	b = left_n & 0b10;
+	*reinterpret_cast<uint16_t*>(l_ptr) |=
+		(*reinterpret_cast<uint16_t*>(l_ptr) * !b) |
+		convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, sizeof(uint16_t)));
+
+	l_ptr += sizeof(uint16_t) * b;
+	r_ptr += sizeof(uint16_t) * b;
+
+	b = left_n & 0b1;
+	*l_ptr |=
+		(*l_ptr * !b) |
+		convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, 1));
+}
+
 int Base256uMath::bitwise_or(
 	const void* const left,
 	std::size_t left_n,
@@ -2237,12 +2288,18 @@ int Base256uMath::bitwise_or(
 	void* const dst,
 	std::size_t dst_n
 ) {
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	memset(dst, 0, dst_n);
+	memcpy(dst, left, MIN(dst_n, left_n));
+	bitwise_or_fast(dst, dst_n, right, right_n);
+#else
 	auto l_ptr = reinterpret_cast<const unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
 	for (std::size_t i = 0; i < dst_n; i++) {
 		dst_ptr[i] = (l_ptr[i] * (i < left_n)) | (r_ptr[i] * (i < right_n));
 	}
+#endif
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (dst_n < MIN(left_n, right_n))
@@ -2257,11 +2314,15 @@ int Base256uMath::bitwise_or(
 	const void* const right,
 	std::size_t right_n
 ) {
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	bitwise_or_fast(left, left_n, right, right_n);
+#else
 	auto l_ptr = reinterpret_cast<unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	for (std::size_t i = 0; i < left_n; i++) {
 		l_ptr[i] |= r_ptr[i] * (i < right_n);
 	}
+#endif
 	return ErrorCodes::OK;
 }
 
@@ -2302,26 +2363,23 @@ int Base256uMath::bitwise_xor(
 
 __host__ __device__
 void bitwise_not_fast(void* src, const std::size_t& src_n) {
-	auto src_ptr = reinterpret_cast<unsigned char*>(src);
-
-	if (src_n / (BASE256UMATH_ARCHITECTURE / 8)) {
-		for (std::size_t i = 0; i < src_n / (BASE256UMATH_ARCHITECTURE / 8) - 1; i++) {
-			*reinterpret_cast<std::size_t*>(src_ptr) = ~(*reinterpret_cast<std::size_t*>(src_ptr));
-			src_ptr += sizeof(std::size_t);
-		}
+	auto src_ptr = reinterpret_cast<uint8_t*>(src);
+#if BASE256UMATH_ARCHITECTURE == 64
+	auto src_end = reinterpret_cast<uint8_t*>(src) + (src_n & ~(std::size_t)0b111);
+#elif BASE256UMATH_ARCHITECTURE == 32
+	auto src_end = reinterpret_cast<uint8_t*>(src) + (src_n & ~(std::size_t)0b11);
+#endif
+	while (src_ptr != src_end) {
+		*reinterpret_cast<std::size_t*>(src_ptr) = ~(*reinterpret_cast<std::size_t*>(src_ptr));
+		src_ptr += sizeof(std::size_t);
 	}
 
 #if BASE256UMATH_ARCHITECTURE >= 64
-	if (src_n & 0b1000) {
-		*reinterpret_cast<uint64_t*>(src_ptr) = ~(*reinterpret_cast<uint64_t*>(src_ptr));
-		src_ptr += sizeof(uint64_t);
-	}
-#endif
-
 	if (src_n & 0b100) {
 		*reinterpret_cast<uint32_t*>(src_ptr) = ~(*reinterpret_cast<uint32_t*>(src_ptr));
 		src_ptr += sizeof(uint32_t);
 	}
+#endif
 
 	if (src_n & 0b10) {
 		*reinterpret_cast<uint16_t*>(src_ptr) = ~(*reinterpret_cast<uint16_t*>(src_ptr));
@@ -2329,7 +2387,7 @@ void bitwise_not_fast(void* src, const std::size_t& src_n) {
 	}
 
 	if (src_n & 0b1) {
-		*reinterpret_cast<uint8_t*>(src_ptr) = ~(*reinterpret_cast<uint8_t*>(src_ptr));
+		*src_ptr = ~(*src_ptr);
 	}
 }
 
@@ -2337,10 +2395,14 @@ int Base256uMath::bitwise_not(
 	void* const src,
 	std::size_t src_n
 ) {
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	bitwise_not_fast(src, src_n);
+#else
 	auto ptr = reinterpret_cast<unsigned char*>(src) + src_n;
 	while (--ptr != reinterpret_cast<unsigned char*>(src) - 1) {
 		*ptr = ~(*ptr);
 	}
+#endif
 	return ErrorCodes::OK;
 }
 
