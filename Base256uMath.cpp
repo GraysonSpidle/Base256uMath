@@ -412,11 +412,10 @@ int Base256uMath::add(
 	memcpy(dst, left, MIN(left_n, dst_n));
 #ifdef BASE256UMATH_FAST_OPERATORS
 	if (binary_add_fast(dst, dst_n, right, right_n))
-		return ErrorCodes::FLOW;
 #else
 	if (binary_add(dst, dst_n, right, right_n))
-		return ErrorCodes::FLOW;
 #endif
+		return ErrorCodes::FLOW;
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (dst_n < MAX(left_n, right_n))
 		return ErrorCodes::TRUNCATED;
@@ -658,14 +657,9 @@ inline void binary_multiply_fast_big_and_half_size_t(
 		product = (std::size_t)reinterpret_cast<const half_size_t*>(left_ptr)[0] *
 			(std::size_t)right;
 
-		binary_add_fast(
+		binary_add(
 			dst_ptr,
-#ifdef __CUDACC__
 			dst_end - dst_ptr,
-			// CUDA is more anal about accessing memory you shouldn't, so we have to do this.
-#else
-			dst_n,
-#endif
 			&product,
 			sizeof(product)
 		);
@@ -767,7 +761,7 @@ inline int binary_multiply_fast(
 	for (std::size_t i = 0; i < right_n / sizeof(half_size_t); i++) {
 		binary_multiply_fast_big_and_half_size_t(
 			left, left_n,
-			reinterpret_cast<const half_size_t*>(right_ptr)[0],
+			*reinterpret_cast<const half_size_t*>(right_ptr),
 			dst_ptr,
 			(dst_n + reinterpret_cast<decltype(dst_ptr)>(dst)) - dst_ptr
 		);
