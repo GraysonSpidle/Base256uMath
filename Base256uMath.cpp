@@ -2132,6 +2132,57 @@ int Base256uMath::bit_shift_right(
 	return code;
 }
 
+__host__ __device__
+inline void bitwise_and_fast(
+	void* const left,
+	const std::size_t& left_n,
+	const void* const right,
+	const std::size_t& right_n
+) {
+	auto l_ptr = reinterpret_cast<uint8_t*>(left);
+	auto r_ptr = reinterpret_cast<const uint8_t*>(right);
+#if BASE256UMATH_ARCHITECTURE == 64
+	auto l_end = reinterpret_cast<uint8_t*>(left) + (left_n & ~(std::size_t)0b111);
+	auto r_end = reinterpret_cast<const uint8_t*>(right) + (right_n & ~(std::size_t)0b111);
+#elif BASE256UMATH_ARCHITECTURE == 32
+	auto l_end = reinterpret_cast<uint8_t*>(left) + (left_n & ~(std::size_t)0b11);
+	auto r_end = reinterpret_cast<const uint8_t*>(right) + (right_n & ~(std::size_t)0b11);
+#endif
+
+	while (l_ptr != l_end) {
+		*reinterpret_cast<std::size_t*>(l_ptr) &= 
+			*reinterpret_cast<const std::size_t*>(r_ptr) * (r_ptr != r_end);
+		l_ptr += sizeof(std::size_t);
+		r_ptr += sizeof(std::size_t) * (r_ptr != r_end);
+	}
+
+	r_end = reinterpret_cast<const uint8_t*>(right) + right_n;
+
+	bool b;
+#if BASE256UMATH_ARCHITECTURE >= 64
+	b = left_n & 0b100;
+	*reinterpret_cast<uint32_t*>(l_ptr) &=
+		(*reinterpret_cast<uint32_t*>(l_ptr) * !b) |
+			convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, sizeof(uint32_t)));
+
+	l_ptr += sizeof(uint32_t) * b;
+	r_ptr += sizeof(uint32_t) * b;
+#endif
+
+	b = left_n & 0b10;
+	*reinterpret_cast<uint16_t*>(l_ptr) &=
+		(*reinterpret_cast<uint16_t*>(l_ptr) * !b) |
+		convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, sizeof(uint16_t)));
+
+	l_ptr += sizeof(uint16_t) * b;
+	r_ptr += sizeof(uint16_t) * b;
+
+	b = left_n & 0b1;
+	*l_ptr &=
+		(*l_ptr * !b) |
+		convert_to_size_t(r_ptr, MIN((r_end - r_ptr) * b, 1));
+}
+
 int Base256uMath::bitwise_and(
 	const void* const left,
 	std::size_t left_n,
@@ -2140,12 +2191,18 @@ int Base256uMath::bitwise_and(
 	void* const dst,
 	std::size_t dst_n
 ) {
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	memset(dst, 0, dst_n);
+	memcpy(dst, left, MIN(dst_n, left_n));
+	bitwise_and_fast(dst, dst_n, right, right_n);
+#else
 	auto l_ptr = reinterpret_cast<const unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	auto dst_ptr = reinterpret_cast<unsigned char*>(dst);
 	for (std::size_t i = 0; i < dst_n; i++) {
 		dst_ptr[i] = (l_ptr[i] * (i < left_n)) & (r_ptr[i] * (i < right_n));
 	}
+#endif
 
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (dst_n < MIN(left_n, right_n))
@@ -2160,11 +2217,15 @@ int Base256uMath::bitwise_and(
 	const void* const right,
 	std::size_t right_n
 ) {
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	bitwise_and_fast(left, left_n, right, right_n);
+#else
 	auto l_ptr = reinterpret_cast<unsigned char*>(left);
 	auto r_ptr = reinterpret_cast<const unsigned char*>(right);
 	for (std::size_t i = 0; i < left_n; i++) {
 		l_ptr[i] &= (r_ptr[i] * (i < right_n));
 	}
+#endif
 	return ErrorCodes::OK;
 }
 
