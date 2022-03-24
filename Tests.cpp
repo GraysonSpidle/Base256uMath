@@ -7,6 +7,14 @@
 #include <iostream>
 #include <string>
 
+#ifndef MIN(a,b)
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
+constexpr std::size_t KB = 1024;
+constexpr std::size_t MB = 1024 * KB;
+constexpr std::size_t GB = 1024 * MB;
+
 int main() {
 #ifndef _DEBUG
 	std::cout << "Make sure you're in debug mode to perform tests!" << std::endl;
