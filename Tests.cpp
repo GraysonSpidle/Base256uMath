@@ -39,7 +39,7 @@ int main() {
 #ifndef __CUDACC__
 	std::cout << std::endl;
 	std::cout << "Running performance tests..." << std::endl;
-	Base256uMathTests::Performance::test(100, 10 * MB);
+	Base256uMathTests::Performance::test(100, 10 * KB);
 	std::cout << "Performance tests concluded." << std::endl;
 #endif
 
