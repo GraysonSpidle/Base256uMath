@@ -410,7 +410,7 @@ int Base256uMath::add(
 ) {
 	memset(dst, 0, dst_n);
 	memcpy(dst, left, MIN(left_n, dst_n));
-#ifdef BASE256UMATH_FAST_OPERATORS
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 	if (binary_add_fast(dst, dst_n, right, right_n))
 #else
 	if (binary_add(dst, dst_n, right, right_n))
@@ -462,6 +462,66 @@ int Base256uMath::add(
 }
 
 __host__ __device__
+inline bool binary_subtract_fast(
+	void* const left,
+	const std::size_t& left_n,
+	const void* const right,
+	const std::size_t& right_n
+) {
+	auto l = reinterpret_cast<unsigned char*>(left);
+	auto l_end = reinterpret_cast<decltype(l)>(left) + (left_n & ~(std::size_t)0b111);
+	auto r = reinterpret_cast<const unsigned char*>(right);
+	auto r_end = reinterpret_cast<decltype(r)>(right) + (right_n & ~(std::size_t)0b111);
+
+	bool borrow = false;
+	std::size_t buffer;
+	while (l != l_end && r != r_end) {
+		buffer = *reinterpret_cast<std::size_t*>(l) - borrow;
+		*reinterpret_cast<std::size_t*>(l) -= *reinterpret_cast<const std::size_t*>(r) + borrow;
+		borrow = (buffer == (std::size_t)-1) || buffer < *reinterpret_cast<const std::size_t*>(r);
+
+		l += sizeof(std::size_t);
+		r += sizeof(std::size_t);
+	}
+
+	std::size_t n = MIN(left_n, right_n);
+	bool b;
+#if BASE256UMATH_ARCHITECTURE >= 64
+	b = n & 0b100;
+	buffer = (*reinterpret_cast<uint32_t*>(l) - borrow) * b;
+	*reinterpret_cast<uint32_t*>(l) -= (*reinterpret_cast<const uint32_t*>(r) + borrow) * b;
+	borrow = (b && ((buffer == (uint32_t)-1) || buffer < *reinterpret_cast<const uint32_t*>(r))) ||
+		(borrow && !b);
+
+	l += sizeof(uint32_t) * b;
+	r+= sizeof(uint32_t) * b;
+#endif
+
+	b = n & 0b10;
+	buffer = (*reinterpret_cast<uint16_t*>(l) - borrow) * b;
+	*reinterpret_cast<uint16_t*>(l) -= (*reinterpret_cast<const uint16_t*>(r) + borrow) * b;
+	borrow = (b && ((buffer == (uint16_t)-1) || buffer < *reinterpret_cast<const uint16_t*>(r))) ||
+		(borrow && !b);
+
+	l += sizeof(uint16_t) * b;
+	r += sizeof(uint16_t) * b;
+
+	b = n & 0b1;
+	buffer = (uint8_t)(*l - borrow) * b;
+	*l -= (*r + borrow) * b;
+	borrow = (b && ((buffer == 255) || buffer < *r)) ||
+		(borrow && !b);
+
+	l += b;
+	
+	l_end = reinterpret_cast<decltype(l)>(left) + left_n;
+
+	if (borrow && l < l_end)
+		return decrement_fast(l, l_end - l);
+	return borrow;
+}
+
+__host__ __device__
 inline bool binary_subtract(
 	void* const left,
 	const std::size_t& left_n,
@@ -489,7 +549,6 @@ inline bool binary_subtract(
 	return borrow;
 }
 
-
 int Base256uMath::subtract(
 	const void* const left, 
 	std::size_t left_n, 
@@ -500,7 +559,11 @@ int Base256uMath::subtract(
 ) {
 	memset(dst, 0, dst_n);
 	memcpy(dst, left, MIN(left_n, dst_n));
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+	if (binary_subtract_fast(dst, dst_n, right, right_n))
+#else
 	if (binary_subtract(dst, dst_n, right, right_n))
+#endif
 		return ErrorCodes::FLOW;
 #if !BASE256UMATH_SUPPRESS_TRUNCATED_CODE
 	if (dst_n < MAX(left_n, right_n))
@@ -816,7 +879,7 @@ int Base256uMath::multiply(
 		memset(dst, 0, dst_n);
 		return Base256uMath::ErrorCodes::OK;
 	}
-#if defined(BASE256UMATH_FAST_OPERATORS)
+#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
 	auto code = binary_multiply_fast(left, left_n, right, right_n, dst, dst_n);
 #else
 	auto code = binary_multiply(left, left_n, right, right_n, dst, dst_n);
