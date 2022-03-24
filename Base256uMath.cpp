@@ -624,27 +624,38 @@ __host__ __device__
 inline void binary_multiply_fast_big_and_half_size_t(
 	const void* const left,
 	const std::size_t& left_n,
-	const half_size_t& right_ptr,
+	const half_size_t& right,
 	void* const dst,
 	const std::size_t& dst_n
 ) {
-	std::size_t product;
-	bool b;
+	/* This function is supposed to be used in conjunction with another.
+	DO NOT CALL THIS FUNCTION ON ITS OWN, UNLESS YOU KNOW WHAT YOU'RE DOING.
+
+	This function, given a half_size_t number, will multiply it by every 
+	number in the "left" number. Just like in regular binary multiplication.
+	*/
 
 	auto left_ptr = reinterpret_cast<const uint8_t*>(left);
 	auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
 	auto dst_end = reinterpret_cast<uint8_t*>(dst) + dst_n;
 
-	// 16 bit or 32 bit (depending on architecture)
+	// will temporarily store the sub-product
+	std::size_t product;
 
-	std::size_t temp;
+	// iterating through all the half_size_t sections in the "left" number while
+	// ensuring dst can acommodate
 	for (std::size_t k = 0; k < left_n / sizeof(half_size_t) && dst_ptr < dst_end; k++) {
 		product = (std::size_t)reinterpret_cast<const half_size_t*>(left_ptr)[0] *
-			(std::size_t)right_ptr;
+			(std::size_t)right;
 
 		binary_add(
 			dst_ptr,
+#ifdef __CUDACC__
+			dst_end - dst_ptr,
+			// CUDA is more anal about accessing memory you shouldn't, so we have to do this.
+#else
 			dst_n,
+#endif
 			&product,
 			sizeof(product)
 		);
@@ -653,7 +664,7 @@ inline void binary_multiply_fast_big_and_half_size_t(
 		dst_ptr += sizeof(half_size_t);
 	}
 
-	/* 3 Scenarios can occur:
+	/* 3 Scenarios can occur (all are remedied by the code below):
 	
 	Scenario 1 - primitive multiplication
 	Condition: left_n < sizeof(half_size_t)
@@ -674,6 +685,7 @@ inline void binary_multiply_fast_big_and_half_size_t(
 	we've already iterated through all the bytes in the left number.
 	*/
 
+	bool b; // to aid in branchless programming
 #if BASE256UMATH_ARCHITECTURE >= 64
 	// 16 bit
 	b = left_n & 0b10;
@@ -681,7 +693,7 @@ inline void binary_multiply_fast_big_and_half_size_t(
 	b = b && dst_ptr < dst_end;
 	// if there are at least 2 bytes left over, then we multiply them by the right number
 	product = b * (std::size_t)reinterpret_cast<const uint16_t*>(left_ptr)[0] *
-		(std::size_t)right_ptr;
+		(std::size_t)right;
 
 	binary_add(
 		dst_ptr,
@@ -700,7 +712,7 @@ inline void binary_multiply_fast_big_and_half_size_t(
 	b = b && dst_ptr < dst_end;
 	// if there is at least 1 byte left over, then we multiply it by the right number
 	product = b * (std::size_t)reinterpret_cast<const uint8_t*>(left_ptr)[0] *
-		(std::size_t)right_ptr;
+		(std::size_t)right;
 
 	binary_add(
 		dst_ptr,
@@ -719,14 +731,29 @@ inline int binary_multiply_fast(
 	void* const dst,
 	const std::size_t& dst_n
 ) {
+	/* A bit of an explanation of what's happening and how this contrasts with
+	the non-fast variant.
+
+	The difference with this implementation is that it attempts to utilize as much
+	of the register as it can. The non-fast variant only focuses on 1 byte at a time.
+
+	Do essentially the same multiplication as before, but with different sized numbers.
+	It helps if you understand regular binary multiplication before understanding this.
+
+	We are using half_size_t instead of size_t because if we were to use size_t, then we
+	cannot store the result in a number without allocating memory from the heap. We are
+	leveraging the principle that a half_size_t number times a half_size_t number will
+	be (at most) a size_t number.
+	*/
+
 	memset(dst, 0, dst_n);
 
-	auto left_ptr = reinterpret_cast<const uint8_t*>(left);
-	auto left_end = reinterpret_cast<const uint8_t*>(left) + left_n;
 	auto right_ptr = reinterpret_cast<const uint8_t*>(right);
 	auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
 
-	std::size_t product;
+	// We are going to cut the "right" number into half_size_t sections
+	// and then feed each section into another function that will
+	// multiply each section by each section of the "left" number.
 	for (std::size_t i = 0; i < right_n / sizeof(half_size_t); i++) {
 		binary_multiply_fast_big_and_half_size_t(
 			left, left_n,
@@ -735,14 +762,19 @@ inline int binary_multiply_fast(
 			(dst_n + reinterpret_cast<decltype(dst_ptr)>(dst)) - dst_ptr
 		);
 
-		// Going on to the next number group
+		// Going on to the next section
 
 		right_ptr += sizeof(half_size_t);
 		dst_ptr += sizeof(half_size_t);
 	}
 
-	bool b;
+	// Sometimes the "right" number is not able to evenly cut into half_size_t sections.
+	// This means we have to scale down our register size to fit some of the sections.
+	
+	bool b; // to aid in branchless programming
+
 #if BASE256UMATH_ARCHITECTURE >= 64
+	// interpreting the "right" number as a uint16
 	b = (reinterpret_cast<const uint8_t*>(right) + right_n - right_ptr) & 0b10;
 	binary_multiply_fast_big_and_half_size_t(
 		left, left_n,
@@ -754,6 +786,7 @@ inline int binary_multiply_fast(
 	dst_ptr += sizeof(uint16_t) * b;
 #endif
 
+	// interpreting the "right" number as a uint8
 	b = (reinterpret_cast<const uint8_t*>(right) + right_n - right_ptr) & 0b1;
 	binary_multiply_fast_big_and_half_size_t(
 		left, left_n,
@@ -779,7 +812,7 @@ int Base256uMath::multiply(
 		memset(dst, 0, dst_n);
 		return Base256uMath::ErrorCodes::OK;
 	}
-#if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
+#if defined(BASE256UMATH_FAST_OPERATORS)
 	auto code = binary_multiply_fast(left, left_n, right, right_n, dst, dst_n);
 #else
 	auto code = binary_multiply(left, left_n, right, right_n, dst, dst_n);
@@ -791,7 +824,7 @@ int Base256uMath::multiply(
 	if (!bool(dst_n) || dst_n < MIN(left_n, right_n))
 		return Base256uMath::ErrorCodes::TRUNCATED;
 #endif
-	return Base256uMath::ErrorCodes::OK;
+	return code;
 }
 
 int Base256uMath::multiply(
@@ -2321,7 +2354,7 @@ int Base256uMath::byte_shift_right(
 
 	// src_n > by is true from this point on
 
-#ifndef __NVCC__
+#ifndef __CUDACC__
 	memmove(src, reinterpret_cast<unsigned char*>(src) + by, src_n - by);
 #else
 	_memmove(src, reinterpret_cast<unsigned char*>(src) + by, src_n - by);

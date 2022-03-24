@@ -51,7 +51,7 @@ Targeted for the C++14 standard and big endian machines.
 #endif
 #endif
 
-#ifndef __NVCC__
+#ifndef __CUDACC__
 #include <cstdlib> // std::size_t
 // nvcc defines this macro and is here for cross compatibility for other compilers
 #define __host__
@@ -409,6 +409,7 @@ namespace Base256uMath {
 
 	Returns an error code, here are the possible error codes it can return:
 	* OK : everything went well.
+	* FLOW : an overflow warning occurred towards the end of the function. Not fatal.
 	* TRUNCATED : when !bool(dst_n) || dst_n < MIN(left_n, right_n). Not fatal.
 	* OOM : required additional memory but was denied. No modifications have occurred.
 		if BASE256UMATH_FAST_OPERATORS is defined (and you're not on cuda), then this
