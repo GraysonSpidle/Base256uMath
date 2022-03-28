@@ -64,7 +64,6 @@ Targeted for the C++14 standard and big endian machines.
 #endif
 
 #define BASE256UMATH_FAST_OPERATORS
-//#define BRANCHLESS
 
 /* 
 Namespace that houses functions to satisfy most operators that primitive numbers have.

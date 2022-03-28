@@ -21,6 +21,7 @@ Author: Grayson Spidle
 
 #include <iostream>
 #include <string>
+#include <cassert>
 
 // ==============================================================================================
 
@@ -612,6 +613,282 @@ int Base256uMath::subtract(
 }
 
 __host__ __device__
+inline void karatsuba_z1(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_left_n,
+	const bool& is_odd_right_n,
+	const std::size_t& temp
+);
+
+__host__ __device__
+inline void karatsuba_z2(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_right_n,
+	const std::size_t& temp
+);
+
+__host__ __device__
+inline void karatsuba_z3(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_left_n,
+	const std::size_t& temp
+);
+
+__host__ __device__
+void karatsuba(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n
+) {
+	// either holds a sub-product or a minimum
+	std::size_t temp;
+	if (left_n <= sizeof(half_size_t) && right_n <= sizeof(half_size_t)) {
+		temp = convert_to_size_t(left_ptr, left_n) * convert_to_size_t(right_ptr, right_n);
+		binary_add(dst_ptr, dst_n, &temp, sizeof(temp));
+		return;
+	}
+	bool is_odd_left_n = left_n & 0b1,
+		is_odd_right_n = right_n & 0b1;
+
+	if ((left_n > right_n) && (left_n >> 1 >= right_n)) {
+		left_n >>= 1;
+		temp = MIN(dst_n, right_n);
+
+		karatsuba(
+			left_ptr, left_n,
+			right_ptr, right_n,
+			dst_ptr, dst_n
+		);
+
+		karatsuba_z2(
+			right_ptr, right_n,
+			left_ptr, left_n,
+			dst_ptr, dst_n,
+			is_odd_left_n,
+			temp
+		);
+
+		left_n <<= 1;
+		left_n ^= is_odd_left_n;
+		return;
+	}
+	if ((left_n < right_n) && (right_n >> 1 >= left_n)) {
+		right_n >>= 1;
+		temp = MIN(dst_n, left_n);
+
+		karatsuba(
+			left_ptr, left_n,
+			right_ptr, right_n,
+			dst_ptr, dst_n
+		);
+
+		karatsuba_z2(
+			left_ptr, left_n,
+			right_ptr, right_n,
+			dst_ptr, dst_n,
+			is_odd_right_n,
+			temp
+		);
+
+		right_n <<= 1;
+		right_n ^= is_odd_right_n;
+		return;
+	}
+
+	// cutting left and right in half
+	left_n >>= 1;
+	right_n >>= 1;
+
+	// temp will hold a minimum
+	temp = MIN(left_n, right_n);
+	temp = MIN(temp, dst_n);
+
+	// z0 = left_low * right_low
+	karatsuba(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n
+	);
+
+	karatsuba_z1(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n,
+		is_odd_left_n,
+		is_odd_right_n,
+		temp
+	);
+
+	karatsuba_z2(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n,
+		is_odd_right_n,
+		temp
+	);
+
+	karatsuba_z3(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n,
+		is_odd_left_n,
+		temp
+	);
+
+	left_n <<= 1;
+	right_n <<= 1;
+
+	left_n ^= is_odd_left_n;
+	right_n ^= is_odd_right_n;
+}
+
+inline void karatsuba_z1(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_left_n,
+	const bool& is_odd_right_n,
+	const std::size_t& temp
+) {
+	// z1 = (left_high * right_high) << (min(left_n, right_n, dst_n) * 2)
+	// Note: the << is byte shifting and not bit shifting
+
+	// left_n and right_n are assumed to already have been divided in half
+
+	// left_ptr is assumed to be pointing to left_low
+	left_ptr += left_n;
+	left_n += is_odd_left_n;
+
+	// right_ptr is assumed to be pointing to right_low
+	right_ptr += right_n;
+	right_n += is_odd_right_n;
+
+	// dst_ptr is assumed to be pointing to its start (at least for that iteration)
+	dst_ptr += temp << 1;
+	dst_n -= temp << 1;
+
+	karatsuba(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n
+	);
+
+	// undo all our changes
+
+	dst_n += temp << 1;
+	dst_ptr -= temp << 1;
+
+	right_n -= is_odd_right_n;
+	right_ptr -= right_n;
+
+	left_n -= is_odd_left_n;
+	left_ptr -= left_n;
+}
+
+inline void karatsuba_z2(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_right_n,
+	const std::size_t& temp
+) {
+	// z2 = (left_low * right_high) << min(left_n, right_n, dst_n)
+	// Note: the << is byte shifting and not bit shifting
+
+	// left_n and right_n are assumed to already have been divided in half
+
+	// left_ptr is assumed to be pointing to left_low
+
+	// right_ptr is assumed to be pointing to right_low so we must offset it
+	right_ptr += right_n;
+	right_n += is_odd_right_n;
+
+	// dst_ptr is assumed to be pointing to its start (at least for that iteration)
+	// offset dst_ptr and dst_n by temp
+	dst_ptr += temp;
+	dst_n -= temp;
+
+	karatsuba(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n
+	);
+
+	// undo all our changes
+
+	dst_n += temp;
+	dst_ptr -= temp;
+
+	right_n -= is_odd_right_n;
+	right_ptr -= right_n;
+}
+
+inline void karatsuba_z3(
+	const uint8_t* left_ptr,
+	std::size_t& left_n,
+	const uint8_t* right_ptr,
+	std::size_t& right_n,
+	uint8_t* dst_ptr,
+	std::size_t& dst_n,
+	const bool& is_odd_left_n,
+	const std::size_t& temp
+) {
+	// z3 = (right_low * left_high) << min(left_n, right_n, dst_n)
+	// Note: the << is byte shifting and not bit shifting
+
+	// left_n and right_n are assumed to already have been divided in half
+
+	// left_ptr is assumed to be pointing to left_low
+	left_ptr += left_n;
+	left_n += is_odd_left_n;
+
+	// right_ptr is assumed to be pointing to right_low
+
+	// dst_ptr is assumed to be pointing to its start (at least for that iteration)
+	// offset dst_ptr and dst_n by temp
+	dst_ptr += temp;
+	dst_n -= temp;
+
+	karatsuba(
+		left_ptr, left_n,
+		right_ptr, right_n,
+		dst_ptr, dst_n
+	);
+
+	// undo all our changes
+
+	dst_n += temp;
+	dst_ptr -= temp;
+
+	left_n -= is_odd_left_n;
+	left_ptr -= left_n;
+}
+
+__host__ __device__
 inline void multiply_char_and_char(
 	const unsigned char& left,
 	const unsigned char& right,
@@ -879,8 +1156,36 @@ int Base256uMath::multiply(
 		memset(dst, 0, dst_n);
 		return Base256uMath::ErrorCodes::OK;
 	}
+	memset(dst, 0, dst_n);
+	/*auto left_ptr = reinterpret_cast<const uint8_t*>(left);
+	auto right_ptr = reinterpret_cast<const uint8_t*>(right);
+	auto dst_ptr = reinterpret_cast<uint8_t*>(dst);
+	auto left_n_copy = left_n;
+	auto right_n_copy = right_n;
+	auto dst_n_copy = dst_n;
+
+	karatsuba(
+		left_ptr, left_n_copy,
+		right_ptr, right_n_copy,
+		dst_ptr, dst_n_copy
+	);*/
+
+	karatsuba(
+		reinterpret_cast<const uint8_t*>(left), left_n,
+		reinterpret_cast<const uint8_t*>(right), right_n,
+		reinterpret_cast<uint8_t*>(dst), dst_n
+	);
+
+	/*assert(left == left_ptr);
+	assert(right == right_ptr);
+	assert(dst == dst_ptr);
+
+	assert(left_n == left_n_copy);
+	assert(right_n == right_n_copy);
+	assert(dst_n == dst_n_copy);*/
+
 #if defined(BASE256UMATH_FAST_OPERATORS) && !defined(__CUDACC__)
-	auto code = binary_multiply_fast(left, left_n, right, right_n, dst, dst_n);
+	//auto code = binary_multiply_fast(left, left_n, right, right_n, dst, dst_n);
 #else
 	auto code = binary_multiply(left, left_n, right, right_n, dst, dst_n);
 	if (code < 0)
@@ -891,7 +1196,7 @@ int Base256uMath::multiply(
 	if (!bool(dst_n) || dst_n < MIN(left_n, right_n))
 		return Base256uMath::ErrorCodes::TRUNCATED;
 #endif
-	return code;
+	return 0;
 }
 
 int Base256uMath::multiply(
