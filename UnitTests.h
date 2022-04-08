@@ -5,24 +5,12 @@ Definitions for all my unit tests. I decided to write my own instead of using a 
 because I didn't want to have to deal with the hassle of the framework not working in other
 environments.
 
-I tried to be comprehensive in my testing, but writing unit tests is boring so I might miss a few things.
+I tried to be comprehensive in my testing, but writing unit tests is boring so I might miss
+a few things.
 */
 
 #ifndef __BASE256UMATH_UNIT_TESTS_H__
 #define __BASE256UMATH_UNIT_TESTS_H__
-
-/* TODO
-max:
-	left_n_zero()
-	right_n_zero()
-min
-	left_n_zero()
-	right_n_zero()
-increment
-	block_n_zero()
-decrement
-	block_n_zero()
-*/
 
 namespace Base256uMathTests {
 	// tests all of them
@@ -100,6 +88,9 @@ namespace Base256uMathTests {
 		void big_left_smaller_left();
 		void big_left_bigger_right();
 		void big_left_smaller_right();
+
+		void left_n_zero();
+		void right_n_zero();
 	};
 	struct min {
 		min();
@@ -118,6 +109,9 @@ namespace Base256uMathTests {
 		void big_left_smaller_left();
 		void big_left_bigger_right();
 		void big_left_smaller_right();
+
+		void left_n_zero();
+		void right_n_zero();
 	};
 	struct increment {
 		increment();
@@ -126,6 +120,7 @@ namespace Base256uMathTests {
 		void big_ideal_case();
 		void overflow();
 		void big_overflow();
+		void block_n_zero();
 	};
 	struct decrement {
 		decrement();
@@ -134,6 +129,7 @@ namespace Base256uMathTests {
 		void big_ideal_case();
 		void underflow();
 		void big_underflow();
+		void block_n_zero();
 	};
 	struct add {
 		add();

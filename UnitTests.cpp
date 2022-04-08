@@ -353,6 +353,9 @@ Base256uMathTests::max::max() {
 	big_left_smaller_left();
 	big_left_bigger_right();
 	big_left_smaller_right();
+
+	left_n_zero();
+	right_n_zero();
 }
 void Base256uMathTests::max::ideal_case_left() {
 	unsigned int left = 500,
@@ -440,6 +443,18 @@ void Base256uMathTests::max::big_left_smaller_right() {
 	auto ptr = Base256uMath::max(left, sizeof(left), right, sizeof(right));
 	assert(ptr == right);
 }
+void Base256uMathTests::max::left_n_zero() {
+	unsigned int left = 1337;
+	unsigned int right = 69;
+	auto ptr = Base256uMath::max(&left, 0, &right, sizeof(right));
+	assert(ptr == &right);
+}
+void Base256uMathTests::max::right_n_zero() {
+	unsigned int left = 1337;
+	unsigned int right = 69;
+	auto ptr = Base256uMath::max(&left, sizeof(left), &right, 0);
+	assert(ptr == &left);
+}
 
 Base256uMathTests::min::min() {
 	ideal_case_left();
@@ -456,6 +471,9 @@ Base256uMathTests::min::min() {
 	big_left_smaller_left();
 	big_left_bigger_right();
 	big_left_smaller_right();
+
+	left_n_zero();
+	right_n_zero();
 }
 void Base256uMathTests::min::ideal_case_left() {
 	unsigned int left = 8969;
@@ -541,12 +559,25 @@ void Base256uMathTests::min::big_left_smaller_right() {
 	auto ptr = Base256uMath::min(left, sizeof(left), right, sizeof(right));
 	assert(ptr == right);
 }
+void Base256uMathTests::min::left_n_zero() {
+	unsigned int left = 1337;
+	unsigned int right = 69;
+	auto ptr = Base256uMath::min(&left, 0, &right, sizeof(right));
+	assert(ptr == &left);
+}
+void Base256uMathTests::min::right_n_zero() {
+	unsigned int left = 69;
+	unsigned int right = 1337;
+	auto ptr = Base256uMath::min(&left, sizeof(left), &right, 0);
+	assert(ptr == &right);
+}
 
 Base256uMathTests::increment::increment() {
 	ideal_case();
 	big_ideal_case();
 	overflow();
 	big_overflow();
+	block_n_zero();
 }
 void Base256uMathTests::increment::ideal_case() {
 	unsigned int num = 14703;
@@ -577,12 +608,19 @@ void Base256uMathTests::increment::big_overflow() {
 	}
 	assert(code == Base256uMath::ErrorCodes::FLOW);
 }
+void Base256uMathTests::increment::block_n_zero() {
+	unsigned int num = 12345;
+	auto code = Base256uMath::increment(&num, 0);
+	assert(num == 12345);
+	assert(code == Base256uMath::ErrorCodes::OK);
+}
 
 Base256uMathTests::decrement::decrement() {
 	ideal_case();
 	big_ideal_case();
 	underflow();
 	big_underflow();
+	block_n_zero();
 }
 void Base256uMathTests::decrement::ideal_case() {
 	unsigned int num = 47157;
@@ -612,6 +650,12 @@ void Base256uMathTests::decrement::big_underflow() {
 		assert(num[i] == 255);
 	}
 	assert(code == Base256uMath::ErrorCodes::FLOW);
+}
+void Base256uMathTests::decrement::block_n_zero() {
+	unsigned int num = 12345;
+	auto code = Base256uMath::decrement(&num, 0);
+	assert(num == 12345);
+	assert(code == Base256uMath::ErrorCodes::OK);
 }
 
 Base256uMathTests::add::add() {
