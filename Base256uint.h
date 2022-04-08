@@ -24,25 +24,36 @@ public:
 	typedef Base256uMath::ErrorCodes ErrorCodes;
 
 	static const Base256uint max(const Base256uint& left, const Base256uint& right);
+	static Base256uint max(Base256uint& left, Base256uint& right);
 	static const Base256uint max(const Base256uint& left, std::size_t right);
 	static const Base256uint min(const Base256uint& left, const Base256uint& right);
+	static Base256uint min(Base256uint& left, Base256uint& right);
 	static const Base256uint min(const Base256uint& left, std::size_t right);
 
 	static Base256uint log2(const Base256uint& other);
 	static std::size_t log256(const Base256uint& other);
 
-	int error = ErrorCodes::OK;
 	std::size_t size;
-	unsigned char* raw;
+	unsigned char* raw = nullptr;
+	int error = ErrorCodes::OK;
+
+	// alignment
+#if BASE256UMATH_ARCHITECTURE == 64
+	// 8 + 8 + 4 = 20 
+	// we need 4 bytes to align this correctly
+	unsigned char unused[4];
+#elif BASE256UMATH_ARCHITECTURE == 32
+	// 4 + 4 + 2 = 10
+	// we need 6 bytes to align this correctly
+	unsigned char unused[6];
+#endif
 
 	Base256uint() = delete; // No default constructor.
 
 	Base256uint(std::size_t num);
 	Base256uint(unsigned char nums[]);
 	Base256uint(const Base256uint& other);
-private:
 	Base256uint(void* raw, std::size_t size);
-public:
 	~Base256uint();
 
 	void resize(); // Kinda like the String.trim() method from Java. Trims unused bytes from the big endian.

@@ -18,31 +18,37 @@ Base256uint::Base256uint(std::size_t num) : size(sizeof(std::size_t)) {
 	memcpy(raw, &num, sizeof(std::size_t));
 }
 
-Base256uint::Base256uint(unsigned char nums[]) {
-	raw = nums;
-	size = sizeof(nums);
+Base256uint::Base256uint(unsigned char nums[]) : size(sizeof(nums)) {
+	raw = reinterpret_cast<unsigned char*>(malloc(sizeof(nums)));
+	if (!raw) {
+		error = ErrorCodes::OOM;
+		return;
+	}
+	memcpy(raw, nums, sizeof(nums));
 }
 
 Base256uint::Base256uint(const Base256uint& other) : size(other.size) {
 	if (!raw) {
 		raw = reinterpret_cast<unsigned char*>(malloc(other.size));
+		if (!raw) {
+			error = ErrorCodes::OOM;
+			return;
+		}
 	}
 	else {
 		void* temp = realloc(raw, other.size);
-		if (temp) {
+		if (temp)
 			raw = reinterpret_cast<unsigned char*>(temp);
-		}
 		else {
 			error = ErrorCodes::OOM;
 			return;
 		}
 	}
-	memcpy(raw, other.raw, other.size); // raw isn't 0, shut up compiler.
+	memcpy(raw, other.raw, other.size);
 }
 
 Base256uint::Base256uint(void* raw, std::size_t size) : size(size) {
 	this->raw = reinterpret_cast<unsigned char*>(raw);
-	error = ErrorCodes::OK;
 }
 
 Base256uint::~Base256uint() {
@@ -57,10 +63,11 @@ void Base256uint::resize() {
 		sig_byte < size - 1
 	) {
 		void* temp = realloc(raw, sig_byte + 1);
-		if (temp)
-			raw = reinterpret_cast<unsigned char*>(temp);
-		else
+		if (!temp) {
 			error = Base256uMath::ErrorCodes::OOM;
+			return;
+		}
+		raw = reinterpret_cast<unsigned char*>(temp);
 	}
 	error = Base256uMath::ErrorCodes::OK;
 }
@@ -118,19 +125,25 @@ bool Base256uint::operator>=(std::size_t other) const {
 }
 
 Base256uint Base256uint::operator&(const Base256uint& other) const {
-	Base256uint output { MIN(size, other.size) };
+	Base256uint output { MAX(size, other.size) };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bitwise_and(raw, size, other.raw, other.size, output.raw, output.size);
 	return output;
 }
 
 Base256uint Base256uint::operator|(const Base256uint& other) const {
 	Base256uint output { MAX(size, other.size) };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bitwise_or(raw, size, other.raw, other.size, output.raw, output.size);
 	return output;
 }
 
 Base256uint Base256uint::operator^(const Base256uint& other) const {
-	Base256uint output { MIN(size, other.size) };
+	Base256uint output { MAX(size, other.size) };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bitwise_xor(raw, size, other.raw, other.size, output.raw, output.size);
 	return output;
 }
@@ -153,24 +166,32 @@ void Base256uint::operator~() {
 
 Base256uint Base256uint::operator<<(const Base256uint& by) const {
 	Base256uint output { size };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bit_shift_left(raw, size, by.raw, by.size, output.raw, output.size);	
 	return output;
 }
 
 Base256uint Base256uint::operator<<(std::size_t by) const {
 	Base256uint output { size };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bit_shift_left(raw, size, by, output.raw, output.size);
 	return output;
 }
 
 Base256uint Base256uint::operator>>(const Base256uint& by) const {
 	Base256uint output{ size };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bit_shift_right(raw, size, by.raw, by.size, output.raw, output.size);
 	return output;
 }
 
 Base256uint Base256uint::operator>>(std::size_t by) const {
 	Base256uint output{ size };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::bit_shift_right(raw, size, by, output.raw, output.size);
 	return output;
 }
@@ -201,7 +222,8 @@ void Base256uint::operator--() {
 
 Base256uint Base256uint::operator+(const Base256uint& other) const {
 	Base256uint output { MAX(size, other.size) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::add(
 		raw, size,
 		other.raw, other.size,
@@ -213,7 +235,8 @@ Base256uint Base256uint::operator+(const Base256uint& other) const {
 
 Base256uint Base256uint::operator+(std::size_t other) const {
 	Base256uint output{ MAX(size, sizeof(other)) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::add(
 		raw, size,
 		&other, sizeof(other),
@@ -225,7 +248,8 @@ Base256uint Base256uint::operator+(std::size_t other) const {
 
 Base256uint Base256uint::operator-(const Base256uint& other) const {
 	Base256uint output{ MAX(size, other.size) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::subtract(
 		raw, size,
 		other.raw, other.size,
@@ -237,7 +261,8 @@ Base256uint Base256uint::operator-(const Base256uint& other) const {
 
 Base256uint Base256uint::operator-(std::size_t other) const {
 	Base256uint output{ MAX(size, sizeof(other)) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::subtract(
 		raw, size,
 		&other, sizeof(other),
@@ -249,7 +274,8 @@ Base256uint Base256uint::operator-(std::size_t other) const {
 
 Base256uint Base256uint::operator*(const Base256uint& other) const {
 	Base256uint output{ MAX(size, other.size) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::multiply(
 		raw, size,
 		other.raw, other.size,
@@ -261,7 +287,8 @@ Base256uint Base256uint::operator*(const Base256uint& other) const {
 
 Base256uint Base256uint::operator*(std::size_t other) const {
 	Base256uint output{ MAX(size, sizeof(other)) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::multiply(
 		raw, size,
 		&other, sizeof(other),
@@ -273,8 +300,9 @@ Base256uint Base256uint::operator*(std::size_t other) const {
 
 Base256uint Base256uint::operator/(const Base256uint& other) const {
 	Base256uint output{ MAX(size, other.size) };
-
-	output.error = Base256uMath::divide(
+	if (!output.error)
+		return output;
+	output.error = Base256uMath::divide_no_mod(
 		raw, size,
 		other.raw, other.size,
 		output.raw, output.size
@@ -285,8 +313,9 @@ Base256uint Base256uint::operator/(const Base256uint& other) const {
 
 Base256uint Base256uint::operator/(std::size_t other) const {
 	Base256uint output{ MAX(size, sizeof(other)) };
-
-	output.error = Base256uMath::divide(
+	if (!output.error)
+		return output;
+	output.error = Base256uMath::divide_no_mod(
 		raw, size,
 		&other, sizeof(other),
 		output.raw, output.size
@@ -297,7 +326,8 @@ Base256uint Base256uint::operator/(std::size_t other) const {
 
 Base256uint Base256uint::operator%(const Base256uint& other) const {
 	Base256uint output{ MAX(size, other.size) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::mod(
 		raw, size,
 		other.raw, other.size,
@@ -309,7 +339,8 @@ Base256uint Base256uint::operator%(const Base256uint& other) const {
 
 Base256uint Base256uint::operator%(std::size_t other) const {
 	Base256uint output{ MAX(size, sizeof(other)) };
-
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::mod(
 		raw, size,
 		&other, sizeof(other),
@@ -361,6 +392,8 @@ void Base256uint::operator%=(std::size_t other) {
 
 Base256uint Base256uint::log2(const Base256uint& other) {
 	Base256uint output { sizeof(std::size_t) + 1 };
+	if (!output.error)
+		return output;
 	output.error = Base256uMath::log2(other.raw, other.size, output.raw, output.size);
 	return output;
 }
@@ -393,9 +426,31 @@ const Base256uint Base256uint::max(
 		return left;
 }
 
+Base256uint Base256uint::max(
+	Base256uint& left,
+	Base256uint& right
+) {
+	int cmp = Base256uMath::compare(left.raw, left.size, right.raw, right.size);
+	if (cmp < 0)
+		return right;
+	else
+		return left;
+}
+
 const Base256uint Base256uint::min(
 	const Base256uint& left,
 	const Base256uint& right
+) {
+	int cmp = Base256uMath::compare(left.raw, left.size, right.raw, right.size);
+	if (cmp > 0)
+		return right;
+	else
+		return left;
+}
+
+Base256uint Base256uint::min(
+	Base256uint& left,
+	Base256uint& right
 ) {
 	int cmp = Base256uMath::compare(left.raw, left.size, right.raw, right.size);
 	if (cmp > 0)
