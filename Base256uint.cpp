@@ -1,6 +1,8 @@
 #include "Base256uint.h"
 #include <cstring>
 
+// Gotta love these macros that you can never escape >:)
+
 #ifndef MIN(a,b)
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #endif
@@ -45,6 +47,14 @@ Base256uint::Base256uint(const Base256uint& other) : size(other.size) {
 		}
 	}
 	memcpy(raw, other.raw, other.size);
+}
+
+Base256uint::Base256uint(Base256uint&& other) : size(other.size) {
+	if (raw)
+		free(raw);
+	raw = other.raw;
+	other.raw = nullptr; // making sure the other's destructor doesn't free our memory
+	error = other.error;
 }
 
 Base256uint::Base256uint(void* raw, std::size_t size) : size(size) {
@@ -181,7 +191,7 @@ Base256uint Base256uint::operator<<(std::size_t by) const {
 }
 
 Base256uint Base256uint::operator>>(const Base256uint& by) const {
-	Base256uint output{ size };
+	Base256uint output { size };
 	if (!output.error)
 		return output;
 	output.error = Base256uMath::bit_shift_right(raw, size, by.raw, by.size, output.raw, output.size);
@@ -415,17 +425,6 @@ const Base256uint Base256uint::max(
 		return left;
 }
 
-const Base256uint Base256uint::max(
-	const Base256uint& left,
-	std::size_t right
-) {
-	int cmp = Base256uMath::compare(left.raw, left.size, &right, sizeof(right));
-	if (cmp < 0)
-		return Base256uint(&right, sizeof(right));
-	else
-		return left;
-}
-
 Base256uint Base256uint::max(
 	Base256uint& left,
 	Base256uint& right
@@ -455,17 +454,6 @@ Base256uint Base256uint::min(
 	int cmp = Base256uMath::compare(left.raw, left.size, right.raw, right.size);
 	if (cmp > 0)
 		return right;
-	else
-		return left;
-}
-
-const Base256uint Base256uint::min(
-	const Base256uint& left,
-	std::size_t right
-) {
-	int cmp = Base256uMath::compare(left.raw, left.size, &right, sizeof(right));
-	if (cmp > 0)
-		return Base256uint(&right, sizeof(right));
 	else
 		return left;
 }
