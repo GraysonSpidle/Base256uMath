@@ -3,7 +3,6 @@
 
 #include <cassert>
 #include <string>
-#include <iostream>
 
 #if BASE256UMATH_ARCHITECTURE == 64
 typedef uint32_t half_size_t;
@@ -827,11 +826,7 @@ void Base256uMathTests::add::big_dst_too_small() {
 void Base256uMathTests::add::zero_for_left_n() {
 	// If left_n is 0, then it's the equivalent of adding 0 to right.
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int left = 1337;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short left = 1337;
-#endif
+	half_size_t left = 1337;
 	std::size_t right = -1;
 	std::size_t dst = 0;
 	auto code = Base256uMath::add(&left, 0, &right, sizeof(right), &dst, sizeof(dst));
@@ -862,21 +857,9 @@ void Base256uMathTests::add::zero_for_dst_n() {
 	assert(code == Base256uMath::ErrorCodes::TRUNCATED);
 }
 void Base256uMathTests::add::in_place_ideal_case() {
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int left = 21048;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short left = 21048;
-#endif
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int right = 13196;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short right = 13196;
-#endif
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int answer = left + right;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short answer = left + right;
-#endif
+	std::size_t left = 21048,
+		right = 13196,
+		answer = left + right;
 	assert(sizeof(left) == sizeof(right));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right));
 	assert(left == answer);
@@ -895,11 +878,7 @@ void Base256uMathTests::add::in_place_big_ideal_case() {
 }
 void Base256uMathTests::add::in_place_left_bigger() {
 	std::size_t left = 8388997231;
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int right = 62557;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short right = 62557;
-#endif
+	half_size_t right = 62557;
 	std::size_t answer = left + right;
 	assert(sizeof(left) > sizeof(right));
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right));
@@ -938,16 +917,8 @@ void Base256uMathTests::add::in_place_big_left_smaller() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::add::in_place_overflow() {
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int left = -1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short left = -1;
-#endif
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int right = 1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short right = 1;
-#endif
+	std::size_t left = -1,
+		right = 1;
 	auto code = Base256uMath::add(&left, sizeof(left), &right, sizeof(right));
 	assert(left == 0);
 	assert(code == Base256uMath::ErrorCodes::FLOW);
@@ -2356,11 +2327,7 @@ Base256uMathTests::log2::log2() {
 	dst_n_zero();
 }
 void Base256uMathTests::log2::ideal_case() {
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 0b00010000000100000;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 0b00010000000100000;
-#endif
+	half_size_t src = 0b00010000000100000;
 	std::size_t dst = 0;
 	assert(sizeof(src) <= sizeof(dst));
 	auto code = Base256uMath::log2(&src, sizeof(src), &dst, sizeof(dst));
@@ -2377,11 +2344,7 @@ void Base256uMathTests::log2::big_ideal_case(){
 void Base256uMathTests::log2::src_is_zero() {
 	// if *src is zero, then nothing happens to dst and divide by zero error is returned
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 0;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 0;
-#endif
+	half_size_t src = 0;
 	std::size_t dst = 1234567890;
 	assert(src == 0);
 	auto code = Base256uMath::log2(&src, sizeof(src), &dst, sizeof(dst));
@@ -2391,11 +2354,7 @@ void Base256uMathTests::log2::src_is_zero() {
 void Base256uMathTests::log2::src_n_zero() {
 	// if src_n is zero, then nothing happens to dst and divide by zero error is returned
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 1337;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 1337;
-#endif
+	half_size_t src = 1337;
 	std::size_t dst = 1234567890;
 	auto code = Base256uMath::log2(&src, 0, &dst, sizeof(dst));
 	assert(dst == 1234567890);
@@ -2404,11 +2363,7 @@ void Base256uMathTests::log2::src_n_zero() {
 void Base256uMathTests::log2::dst_n_zero() {
 	// if dst_n is zero, then nothing happens and truncated warning code is returned
 	
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 1337;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 1337;
-#endif
+	half_size_t src = 1337;
 	std::size_t dst = 1234567890;
 	auto code = Base256uMath::log2(&src, sizeof(src), &dst, 0);
 	assert(dst == 1234567890);
@@ -2477,9 +2432,9 @@ Base256uMathTests::bitwise_and::bitwise_and() {
 	in_place_right_n_zero();
 }
 void Base256uMathTests::bitwise_and::ideal_case() {
-	unsigned short left = 49816;
-	unsigned short right = 13925;
-	unsigned short dst;
+	half_size_t left = 49816,
+		right = 13925,
+		dst;
 	assert(sizeof(left) == sizeof(right) && sizeof(left) == sizeof(dst));
 	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
 	assert(dst == (left & right));
@@ -2497,11 +2452,15 @@ void Base256uMathTests::bitwise_and::big_ideal_case() {
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::bitwise_and::left_bigger() {
-	unsigned int left = 3477483;
-	unsigned short right = 16058;
+	std::size_t left = 3477483;
+	half_size_t right = 16058;
 	decltype(left) dst;
 	assert(sizeof(left) > sizeof(right) && sizeof(left) == sizeof(dst));
-	auto code = Base256uMath::bitwise_and(&left, sizeof(left), &right, sizeof(right), &dst, sizeof(dst));
+	auto code = Base256uMath::bitwise_and(
+		&left, sizeof(left),
+		&right, sizeof(right),
+		&dst, sizeof(dst)
+	);
 	assert(dst == (left & right));
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
@@ -2882,11 +2841,7 @@ void Base256uMathTests::bitwise_or::in_place_left_n_zero() {
 	// if left_n is zero, then nothing happens
 
 	std::size_t left = 29128481;
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int right = -1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short right = -1;
-#endif
+	half_size_t right = -1;
 	decltype(left) answer = 29128481;
 	auto code = Base256uMath::bitwise_or(&left, 0, &right, sizeof(right));
 	assert(left == answer);
@@ -2895,11 +2850,7 @@ void Base256uMathTests::bitwise_or::in_place_left_n_zero() {
 void Base256uMathTests::bitwise_or::in_place_right_n_zero() {
 	// if right_n is zero, then it is treated as all zeros
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int left = -1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short left = -1;
-#endif
+	half_size_t left = -1;
 	std::size_t right = 2912879481;
 	decltype(left) answer = -1;
 	auto code = Base256uMath::bitwise_or(&left, sizeof(left), &right, 0);
@@ -3112,11 +3063,7 @@ void Base256uMathTests::bitwise_xor::in_place_left_n_zero() {
 	// if left_n is zero, then nothing happens
 
 	std::size_t left = 29128481;
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int right = -1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short right = -1;
-#endif
+	half_size_t right = -1;
 	decltype(left) answer = 29128481;
 	auto code = Base256uMath::bitwise_xor(&left, 0, &right, sizeof(right));
 	assert(left == answer);
@@ -3125,11 +3072,7 @@ void Base256uMathTests::bitwise_xor::in_place_left_n_zero() {
 void Base256uMathTests::bitwise_xor::in_place_right_n_zero() {
 	// if right_n is zero, then it is treated as all zeros
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int left = -1;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short left = -1;
-#endif
+	half_size_t left = -1;
 	std::size_t right = 2919481;
 	decltype(left) answer = -1;
 	auto code = Base256uMath::bitwise_xor(&left, sizeof(left), &right, 0);
@@ -3143,16 +3086,8 @@ Base256uMathTests::bitwise_not::bitwise_not() {
 	src_n_zero();
 }
 void Base256uMathTests::bitwise_not::ideal_case() {
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 2493050980;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 2493050980;
-#endif
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int answer = ~src;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short answer = ~src;
-#endif
+	std::size_t src = 2493050980,
+		answer = ~src;
 	auto code = Base256uMath::bitwise_not(&src, sizeof(src));
 	assert(src == answer);
 	assert(code == Base256uMath::ErrorCodes::OK);
@@ -3558,18 +3493,16 @@ Base256uMathTests::byte_shift_left::byte_shift_left() {
 	in_place_by_is_zero();
 }
 void Base256uMathTests::byte_shift_left::ideal_case() {
-	std::size_t src = 1305258424;
-#if BASE256UMATH_ARCHITECTURE == 64
-	std::size_t by = 5;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	std::size_t by = 3;
-#endif
-	std::size_t dst;
-	std::size_t answer = src << (by * 8);
-	assert(sizeof(src) > by && by > 0 && sizeof(src) == sizeof(dst));
-	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
-	assert(dst == answer);
-	assert(code == Base256uMath::ErrorCodes::OK);
+	std::size_t src = 1305258424,
+		dst, answer;
+	int code;
+	for (std::size_t by = 1; by < sizeof(std::size_t); by++) {
+		assert(sizeof(src) > by && by > 0 && sizeof(src) == sizeof(dst));
+		answer = src << (by * 8);
+		code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
+		assert(dst == answer);
+		assert(code == Base256uMath::ErrorCodes::OK);
+	}
 }
 void Base256uMathTests::byte_shift_left::big_ideal_case() {
 	uint8_t src[] = { 223, 192, 7, 188, 111, 229, 33, 55, 8 };
@@ -3586,9 +3519,9 @@ void Base256uMathTests::byte_shift_left::big_ideal_case() {
 void Base256uMathTests::byte_shift_left::src_n_less_than_by() {
 	// means the result is all zeros
 
-	unsigned short src = 1337;
+	half_size_t src = 1337;
 	std::size_t by = sizeof(src) + 1;
-	unsigned short dst = 394021884;
+	half_size_t dst = 394021884;
 	assert(sizeof(src) == sizeof(dst) && sizeof(src) < by);
 	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), by, &dst, sizeof(dst));
 	assert(dst == 0);
@@ -3646,27 +3579,15 @@ void Base256uMathTests::byte_shift_left::dst_n_zero() {
 void Base256uMathTests::byte_shift_left::by_is_zero() {
 	// if by is zero, then it effectively copies src into dst.
 
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int src = 1334;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short src = 1334;
-#endif
-#if BASE256UMATH_ARCHITECTURE == 64
-	unsigned int dst = 39301;
-#elif BASE256UMATH_ARCHITECTURE == 32
-	unsigned short dst = 39301;
-#endif
+	std::size_t src = 1334,
+		dst = 39301;
 	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), 0, &dst, sizeof(dst));
 	assert(dst == 1334);
 	assert(code == Base256uMath::ErrorCodes::OK);
 }
 void Base256uMathTests::byte_shift_left::in_place_ideal_case() {
 	std::size_t src = 258424;
-#if BASE256UMATH_ARCHITECTURE == 64
-	std::size_t by = 5;
-#elif BASE256UMATH_ARCHITECTURE == 32
 	std::size_t by = 3;
-#endif
 	decltype(src) answer = src << by * 8;
 	assert(sizeof(src) > by && by > 0);
 	auto code = Base256uMath::byte_shift_left(&src, sizeof(src), by);
@@ -3824,11 +3745,7 @@ void Base256uMathTests::byte_shift_right::by_is_zero() {
 }
 void Base256uMathTests::byte_shift_right::in_place_ideal_case() {
 	std::size_t src = 13056761402769258424;
-#if BASE256UMATH_ARCHITECTURE == 64
-	std::size_t by = 5;
-#elif BASE256UMATH_ARCHITECTURE == 32
 	std::size_t by = 3;
-#endif
 	decltype(src) answer = src >> by * 8;
 	assert(sizeof(src) > by && by > 0);
 	auto code = Base256uMath::byte_shift_right(&src, sizeof(src), by);
