@@ -1,14 +1,19 @@
 #include "Base256uMath.h"
 #include "UnitTests.h"
-#include "PerformanceTests.h"
 #ifdef __CUDACC__
 #include "CUDAUnitTests.h"
+#else
+#include "PerformanceTests.h"
 #endif
 #include <iostream>
 #include <string>
 
 #ifndef MIN(a,b)
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef MAX(a,b)
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
 constexpr std::size_t KB = 1024;

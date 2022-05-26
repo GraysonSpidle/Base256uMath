@@ -5,6 +5,7 @@
 namespace Base256uMathTests {
 	namespace Performance {
 		void test(std::size_t sample_size, std::size_t size);
+		void test_obj();
 
 		void is_zero(const std::size_t& sample_size, const std::size_t& size);
 		void compare(const std::size_t& sample_size, const std::size_t& size);

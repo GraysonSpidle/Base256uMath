@@ -63,6 +63,35 @@ void Base256uMathTests::Performance::test(std::size_t sample_size, std::size_t s
 	Base256uMathTests::Performance::mod(sample_size, size);
 }
 
+/*
+void Base256uMathTests::Performance::test_obj() {
+	std::vector<long long> vec;
+	Timer timer = { vec };
+	void* block = malloc(13);
+	if (!block)
+		abort();
+	void* block2 = malloc(13);
+	if (!block2) {
+		free(block);
+		abort();
+	}
+
+	Base256uint num0 = { block, 13 };
+	Base256uint num1 = { block2, 13 };
+
+	for (std::size_t i = 0; i < 100; i++) {
+		timer.start();
+		num0 + num1;
+		timer.stop();
+	}
+
+	double average = calculate_average(vec);
+	std::cout << "obj: " << std::to_string(average) << std::endl;
+
+	free(block);
+	free(block2);
+}*/
+
 inline void print_progress(const std::size_t& i, const std::size_t& sample_size) {
 	std::cout << int(((float)i / (float)sample_size) * 100.0) << "%\r";
 	std::cout.flush();

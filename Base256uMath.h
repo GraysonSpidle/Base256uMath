@@ -51,6 +51,12 @@ Targeted for the C++14 standard and big endian machines.
 #endif
 #endif
 
+#if BASE256UMATH_ARCHITECTURE > 64 || BASE256UMATH_ARCHITECTURE < 32
+#error Architecture error. More details in comments below.
+// This library was built for 64 bit and 32 bit systems. Either patch the code to be compatible
+// or correct the architecture macro's value.
+#endif
+
 #ifndef __CUDACC__
 #include <cstdlib> // std::size_t
 // nvcc defines this macro and is here for cross compatibility for other compilers
@@ -64,7 +70,6 @@ Targeted for the C++14 standard and big endian machines.
 #endif
 
 #define BASE256UMATH_FAST_OPERATORS
-//#define BRANCHLESS
 
 /* 
 Namespace that houses functions to satisfy most operators that primitive numbers have.
@@ -85,7 +90,6 @@ namespace Base256uMath {
 	of nothing. However, when debugging, it is actually kind of useful *sometimes*. So there's that.
 	*/
 	enum ErrorCodes {
-
 		OOM = -2, // Out of memory
 		DIVIDE_BY_ZERO = -1, // Division by zero
 		OK = 0, // Nothing went wrong
