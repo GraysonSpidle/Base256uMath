@@ -37,7 +37,7 @@ I don't have an array of GPUs to test this on (I use a `Quadro K2200` for testin
 ## Targets
 - `C++14` language standard
 - Big Endian machine
-- 64 bit machines (until I can confirm that it works on 32 bit).
+- 64 and 32 bit machines
 - msvc and gcc compiler
 - cuda support (although I would only qualify it as "barely" right now)
 
@@ -129,7 +129,6 @@ For example, if you are multiplying by 2, instead of using the `multiply()` func
 - optimize divide
 - optimize modulo
 - nvcc (CUDA) compatibility
-- 32 bit compatibility (mostly just verifying it passes tests)
 - polishing clarity in documentation
 
 ## Some nice things I'd like to have happen
